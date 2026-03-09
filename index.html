@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orion One — Wholesale Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
+<style>
+:root {
+  --bg: #f4f3ef;
+  --surface: #ffffff;
+  --card: #ffffff;
+  --border: #e5e3dd;
+  --border-strong: #ccc9c0;
+  --sidebar: #18181b;
+  --sidebar-active: rgba(251,191,36,.12);
+  --sidebar-text: rgba(255,255,255,.55);
+  --sidebar-text-active: #fbbf24;
+  --accent: #18181b;
+  --gold: #d97706;
+  --gold-bg: #fef3c7;
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --red: #dc2626;
+  --red-bg: #fee2e2;
+  --blue: #2563eb;
+  --blue-bg: #dbeafe;
+  --purple-bg: #ede9fe;
+  --purple: #7c3aed;
+  --text: #18181b;
+  --text-2: #52525b;
+  --text-3: #a1a1aa;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
+  --shadow: 0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md: 0 4px 16px rgba(0,0,0,.1),0 2px 6px rgba(0,0,0,.06);
+  --shadow-lg: 0 20px 48px rgba(0,0,0,.18),0 8px 20px rgba(0,0,0,.1);
+  --r: 10px;
+  --r-sm: 6px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;display:flex}
+
+.sidebar{width:228px;min-width:228px;background:var(--sidebar);display:flex;flex-direction:column;height:100vh;overflow-y:auto;position:relative;z-index:50}
+.sidebar-logo{padding:22px 18px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.07)}
+.logo-mark{width:34px;height:34px;background:var(--gold);border-radius:8px;display:grid;place-items:center;font-weight:700;font-size:13px;color:#18181b;font-family:'DM Mono',monospace;flex-shrink:0}
+.logo-text{font-weight:700;font-size:15px;color:#fff;letter-spacing:-.2px}
+.logo-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+.sidebar-section{padding:20px 10px 6px}
+.sidebar-section-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.25);text-transform:uppercase;letter-spacing:1.5px;padding:0 8px 8px}
+.nav-btn{width:100%;display:flex;align-items:center;gap:9px;padding:9px 10px;border-radius:7px;border:none;background:none;color:var(--sidebar-text);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;text-align:left;transition:all .15s;position:relative}
+.nav-btn:hover{background:rgba(255,255,255,.06);color:rgba(255,255,255,.85)}
+.nav-btn.active{background:var(--sidebar-active);color:var(--sidebar-text-active)}
+.nav-btn svg{width:17px;height:17px;flex-shrink:0;opacity:.6}
+.nav-btn.active svg{opacity:1}
+.nav-badge{margin-left:auto;background:var(--gold);color:#18181b;font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;min-width:20px;text-align:center}
+.sidebar-bottom{margin-top:auto;padding:16px 10px;border-top:1px solid rgba(255,255,255,.07);display:flex;flex-direction:column;gap:8px}
+.sidebar-cta{width:100%;padding:11px 14px;border-radius:8px;border:none;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:all .15s}
+.cta-deal{background:var(--gold);color:#18181b}
+.cta-deal:hover{background:#b45309;transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.cta-vehicle{background:rgba(255,255,255,.08);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.1)}
+.cta-vehicle:hover{background:rgba(255,255,255,.13);color:#fff}
+
+.main{flex:1;min-width:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.page-header{padding:22px 30px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:40;flex-shrink:0}
+.ph-title{font-size:19px;font-weight:700;letter-spacing:-.4px}
+.ph-sub{font-size:12.5px;color:var(--text-3);margin-top:2px}
+.ph-actions{display:flex;align-items:center;gap:10px}
+.page-body{padding:26px 30px;flex:1}
+.page{display:none;flex-direction:column;gap:22px}
+.page.active{display:flex}
+
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap}
+.btn:hover{transform:translateY(-1px)}
+.btn-dark{background:var(--accent);color:#fff}
+.btn-dark:hover{background:#27272a;box-shadow:var(--shadow-md)}
+.btn-gold{background:var(--gold);color:#fff}
+.btn-gold:hover{background:#b45309;box-shadow:var(--shadow-md)}
+.btn-green{background:var(--green);color:#fff}
+.btn-green:hover{background:#15803d;box-shadow:var(--shadow-md)}
+.btn-red{background:var(--red);color:#fff}
+.btn-red:hover{background:#b91c1c}
+.btn-ghost{background:transparent;border:1.5px solid var(--border-strong);color:var(--text-2)}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accent);background:rgba(24,24,27,.04);transform:none}
+.btn-sm{padding:5px 11px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px;border-radius:4px}
+
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;align-items:stretch}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-start}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--stat-accent,var(--border))}
+.stat-icon{width:36px;height:36px;border-radius:8px;display:grid;place-items:center;font-size:17px;margin-bottom:14px;flex-shrink:0}
+.stat-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:7px}
+.stat-value{font-size:28px;font-weight:800;letter-spacing:-1.2px;line-height:1;color:var(--text)}
+.stat-meta{font-size:12px;color:var(--text-3);margin-top:7px;margin-bottom:0}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+.card-head{padding:15px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.card-title{font-size:14px;font-weight:700;letter-spacing:-.1px}
+.card-sub{font-size:12px;color:var(--text-3);margin-top:2px}
+
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;background:#fafaf9;border-bottom:1px solid var(--border);white-space:nowrap}
+tbody td{padding:13px 16px;font-size:13.5px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer;transition:background .1s}
+tbody tr.clickable:hover td{background:#fafaf9}
+
+.empty{padding:56px 20px;text-align:center;color:var(--text-3)}
+.empty-icon{font-size:38px;margin-bottom:12px;opacity:.4}
+.empty-title{font-size:15px;font-weight:700;color:var(--text-2);margin-bottom:6px}
+.empty-sub{font-size:13px;margin-bottom:20px}
+
+.badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.b-dot{width:5px;height:5px;border-radius:50%}
+.b-active{background:var(--blue-bg);color:var(--blue)}
+.b-sold{background:var(--green-bg);color:var(--green)}
+.b-auction{background:var(--purple-bg);color:var(--purple)}
+.b-dealer{background:var(--gold-bg);color:var(--gold)}
+.b-profit{background:var(--green-bg);color:var(--green);font-family:'DM Mono',monospace}
+.b-loss{background:var(--red-bg);color:var(--red);font-family:'DM Mono',monospace}
+
+.toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.search-box{position:relative}
+.search-box input{padding:8px 12px 8px 34px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border-color .15s;width:240px}
+.search-box input:focus{border-color:var(--accent)}
+.search-box::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
+.filter-sel{padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;cursor:pointer;transition:border-color .15s}
+.filter-sel:focus{border-color:var(--accent)}
+
+.v-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:16px}
+.vcard{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r);padding:18px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden}
+.vcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
+.vcard:hover{border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.vcard-stock{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3);background:#f4f3ef;padding:3px 8px;border-radius:4px;letter-spacing:.3px}
+.vcard-name{font-size:16px;font-weight:800;letter-spacing:-.4px;margin-bottom:3px;color:var(--text)}
+.vcard-vin{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3);margin-bottom:14px;letter-spacing:.3px}
+.vcard-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border);margin-bottom:14px}
+.vcard-item label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:2px}
+.vcard-item span{font-size:14px;font-weight:700;color:var(--text)}
+.vcard-item span.gold{color:var(--gold)}
+.vcard-actions{display:flex;gap:8px}
+.vcard-actions .btn{flex:1;justify-content:center}
+
+.dp-overlay{position:fixed;inset:0;background:rgba(10,10,15,.4);backdrop-filter:blur(3px);z-index:100;display:none;cursor:pointer}
+.dp-overlay.open{display:block;animation:fadeI .2s}
+.dp{position:fixed;top:0;right:0;bottom:0;width:460px;background:var(--surface);border-left:1px solid var(--border);box-shadow:var(--shadow-lg);z-index:101;transform:translateX(100%);transition:transform .28s cubic-bezier(.22,.68,.36,1);display:flex;flex-direction:column}
+.dp.open{transform:none}
+.dp-header{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-shrink:0}
+.dp-name{font-size:18px;font-weight:800;letter-spacing:-.4px}
+.dp-stock-line{display:flex;align-items:center;gap:8px;margin-top:4px}
+.dp-stock{font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)}
+.close-btn{width:30px;height:30px;border-radius:50%;background:#f4f3ef;border:none;cursor:pointer;display:grid;place-items:center;font-size:16px;color:var(--text-3);transition:all .15s;flex-shrink:0;margin-top:2px}
+.close-btn:hover{background:var(--red-bg);color:var(--red)}
+.dp-body{flex:1;overflow-y:auto;padding:18px 20px}
+.dp-section{margin-bottom:20px}
+.dp-section-title{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.dp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dp-item label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:3px}
+.dp-item span{font-size:13.5px;font-weight:500;color:var(--text)}
+.dp-notes{background:#fafaf9;border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--text-2);margin-top:12px;font-style:italic}
+
+.cost-list{border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.cost-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;transition:background .1s}
+.cost-row:last-child{border-bottom:none}
+.cost-row:hover{background:#fafaf9}
+.cost-label{color:var(--text-2);display:flex;align-items:center;gap:6px}
+.cost-label.indent{padding-left:12px;color:var(--text-3);font-size:12.5px}
+.cost-amount{font-family:'DM Mono',monospace;font-size:12.5px;font-weight:500}
+.cost-row.total-row{background:#fafaf9;font-weight:700;font-size:14px}
+.cost-row.profit-row{font-weight:700;font-size:14px;color:var(--green)}
+.cost-row.loss-row{font-weight:700;font-size:14px;color:var(--red)}
+.exp-remove{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:14px;padding:0 3px;line-height:1;opacity:0;transition:opacity .15s}
+.cost-row:hover .exp-remove{opacity:1}
+.exp-remove:hover{color:var(--red)}
+
+.qadd{background:#fafaf9;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);padding:12px;margin-top:10px}
+.qadd-label{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.qadd-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:center}
+.qadd select,.qadd input{padding:7px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+.qadd select:focus,.qadd input:focus{border-color:var(--accent)}
+
+.deal-ribbon{background:linear-gradient(135deg,#18181b 0%,#27272a 100%);border-radius:var(--r-sm);padding:16px;color:#fff;margin-bottom:18px}
+.deal-ribbon-label{font-size:10px;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px}
+.deal-ribbon-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.deal-ribbon-item label{font-size:10px;color:rgba(255,255,255,.45);font-weight:600;text-transform:uppercase;letter-spacing:.7px;display:block;margin-bottom:2px}
+.deal-ribbon-item span{font-size:15px;font-weight:700;color:#fff;font-family:'DM Mono',monospace}
+.deal-ribbon-item span.profit-val{color:#86efac}
+.deal-ribbon-item span.loss-val{color:#fca5a5}
+
+.dp-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+.dp-footer .btn{flex:1;justify-content:center}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(10,10,15,.5);backdrop-filter:blur(4px);z-index:200;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal-overlay.open{display:flex;animation:fadeI .2s}
+@keyframes fadeI{from{opacity:0}to{opacity:1}}
+.modal{background:var(--surface);border-radius:14px;width:100%;max-width:640px;box-shadow:var(--shadow-lg);animation:slideUp .22s cubic-bezier(.22,.68,.36,1);margin:auto}
+.modal-lg{max-width:820px}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{padding:22px 24px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.modal-title{font-size:18px;font-weight:800;letter-spacing:-.4px}
+.modal-sub{font-size:12.5px;color:var(--text-3);margin-top:3px}
+.modal-body{padding:20px 24px}
+.modal-foot{padding:16px 24px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
+
+.fs{margin-bottom:22px}
+.fs:last-child{margin-bottom:0}
+.fs-title{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.frow.cols1{grid-template-columns:1fr}
+.frow.cols3{grid-template-columns:1fr 1fr 1fr}
+.frow:last-child{margin-bottom:0}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:12px;font-weight:600;color:var(--text-2)}
+.fg label span{font-size:10px;font-weight:500;color:var(--gold);text-transform:none;letter-spacing:0}
+.fg input,.fg select,.fg textarea{padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--text);outline:none;transition:all .15s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(24,24,27,.07)}
+.fg textarea{resize:vertical;min-height:72px}
+
+.vin-field{position:relative}
+.vin-field input{font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.5px;text-transform:uppercase;padding-right:60px}
+.vin-counter{position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:11px;font-family:'DM Mono',monospace;color:var(--text-3);pointer-events:none}
+.vin-pill{margin-top:7px;padding:8px 12px;border-radius:var(--r-sm);font-size:12.5px;display:none;align-items:center;gap:7px}
+.vin-pill.ok{background:var(--green-bg);border:1px solid #bbf7d0;color:var(--green);display:flex}
+.vin-pill.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e;display:flex}
+.vin-pill.err{background:var(--red-bg);border:1px solid #fecaca;color:var(--red);display:flex}
+
+.exp-list{display:flex;flex-direction:column;gap:8px}
+.exp-row{display:grid;grid-template-columns:1fr 120px 34px;gap:8px;align-items:center}
+.exp-row select,.exp-row input{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
+.exp-row select:focus,.exp-row input:focus{border-color:var(--accent)}
+.exp-del-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text-3);cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all .15s;flex-shrink:0}
+.exp-del-btn:hover{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+
+/* ── PHOTOS ── */
+.photo-upload-zone{border:2px dashed var(--border-strong);border-radius:var(--r-sm);padding:22px;text-align:center;cursor:pointer;transition:all .18s;background:#fafaf9;position:relative}
+.photo-upload-zone:hover{border-color:var(--accent);background:#f4f3ef}
+.photo-upload-zone.dragover{border-color:var(--blue);background:var(--blue-bg)}
+.photo-upload-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-upload-icon{font-size:26px;margin-bottom:6px;opacity:.5}
+.photo-upload-label{font-size:13px;font-weight:600;color:var(--text-3)}
+.photo-upload-sub{font-size:11px;color:var(--text-3);margin-top:3px}
+.photo-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px;margin-top:10px}
+.photo-thumb{position:relative;aspect-ratio:4/3;border-radius:6px;overflow:hidden;border:1.5px solid var(--border);cursor:pointer;group}
+.photo-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.photo-thumb:hover img{transform:scale(1.05)}
+.photo-thumb-del{position:absolute;top:4px;right:4px;width:20px;height:20px;border-radius:50%;background:rgba(0,0,0,.65);border:none;color:#fff;font-size:11px;cursor:pointer;display:grid;place-items:center;opacity:0;transition:opacity .15s}
+.photo-thumb:hover .photo-thumb-del{opacity:1}
+.photo-thumb.primary::after{content:'★';position:absolute;bottom:4px;left:5px;font-size:11px;color:#fbbf24;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+/* Inventory card photo */
+.vcard-photo{width:100%;height:160px;object-fit:cover;border-radius:6px;margin-bottom:12px;display:block;border:1px solid var(--border)}
+.vcard-no-photo{width:100%;height:110px;background:linear-gradient(135deg,#f4f3ef,#e5e3dd);border-radius:6px;margin-bottom:12px;display:flex;align-items:center;justify-content:center;font-size:28px;opacity:.4;border:1px solid var(--border)}
+/* Detail panel photo gallery */
+.dp-gallery{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:4px}
+.dp-gallery-main{grid-column:1/-1;border-radius:8px;overflow:hidden;aspect-ratio:16/9;cursor:pointer}
+.dp-gallery-main img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.dp-gallery-main:hover img{transform:scale(1.02)}
+.dp-gallery-thumb{border-radius:6px;overflow:hidden;aspect-ratio:4/3;cursor:pointer;border:1.5px solid var(--border)}
+.dp-gallery-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.dp-gallery-thumb:hover img{transform:scale(1.05)}
+.dp-gallery-more{border-radius:6px;aspect-ratio:4/3;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:var(--text-3);cursor:pointer;border:1.5px solid var(--border)}
+/* Lightbox */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9000;display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.lightbox.open{display:flex;animation:fadeI .18s}
+.lightbox img{max-width:90vw;max-height:80vh;object-fit:contain;border-radius:8px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.lightbox-nav{display:flex;align-items:center;gap:16px}
+.lightbox-btn{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);color:#fff;font-size:20px;cursor:pointer;display:grid;place-items:center;transition:background .15s}
+.lightbox-btn:hover{background:rgba(255,255,255,.22)}
+.lightbox-counter{font-size:13px;color:rgba(255,255,255,.6);font-family:'DM Mono',monospace;min-width:60px;text-align:center}
+.lightbox-close{position:absolute;top:20px;right:20px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:18px;cursor:pointer;display:grid;place-items:center}
+.lightbox-close:hover{background:rgba(255,255,255,.2)}
+
+.vpicker{border:1.5px solid var(--border);border-radius:var(--r-sm);max-height:200px;overflow-y:auto}
+.vpick-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.vpick-item:last-child{border-bottom:none}
+.vpick-item:hover{background:#fafaf9}
+.vpick-item.sel{background:var(--blue-bg);border-left:3px solid var(--blue)}
+.vpi-stk{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--text-3);background:#f4f3ef;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.vpi-name{flex:1;font-size:13.5px;font-weight:700}
+.vpi-cost{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-3);white-space:nowrap}
+
+.profit-bar{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:12px}
+.pbar-cell{padding:12px 14px;text-align:center;border-right:1px solid var(--border)}
+.pbar-cell:last-child{border-right:none}
+.pbar-label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.pbar-val{font-size:17px;font-weight:800;letter-spacing:-.5px;font-family:'DM Mono',monospace}
+
+.month-pills{display:flex;gap:6px;flex-wrap:wrap}
+.mpill{padding:6px 14px;border-radius:20px;font-size:12.5px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);background:var(--surface);color:var(--text-3);transition:all .15s}
+.mpill:hover{border-color:var(--accent);color:var(--accent)}
+.mpill.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.pl-hero{text-align:center;padding:18px 16px}
+.pl-hero-label{font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.pl-hero-val{font-size:26px;font-weight:800;letter-spacing:-1px;line-height:1;font-family:'DM Mono',monospace}
+.pl-hero-val.pos{color:var(--green)}
+.pl-hero-val.neg{color:var(--red)}
+.pl-hero-sub{font-size:12.5px;color:var(--text-3);margin-top:8px}
+
+.toasts{position:fixed;bottom:22px;right:22px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--text);color:#fff;padding:11px 16px;border-radius:8px;font-size:13.5px;font-weight:500;box-shadow:var(--shadow-lg);display:flex;align-items:center;gap:9px;min-width:260px;pointer-events:none;animation:toastIn .25s cubic-bezier(.22,.68,.36,1)}
+.toast.ok{background:var(--green)}
+.toast.er{background:var(--red)}
+.toast.info{background:#18181b}
+@keyframes toastIn{from{opacity:0;transform:translateY(8px) scale(.95)}to{opacity:1;transform:none}}
+
+.confirm-overlay{position:fixed;inset:0;background:rgba(10,10,15,.5);backdrop-filter:blur(4px);z-index:99999;display:flex;align-items:center;justify-content:center;animation:fadeI .15s}
+.confirm-box{background:var(--surface);border-radius:14px;padding:28px;max-width:380px;width:90%;box-shadow:var(--shadow-lg);animation:slideUp .2s cubic-bezier(.22,.68,.36,1)}
+.confirm-icon{font-size:36px;margin-bottom:12px}
+.confirm-title{font-size:17px;font-weight:800;letter-spacing:-.3px;margin-bottom:6px}
+.confirm-msg{font-size:13.5px;color:var(--text-2);line-height:1.5;margin-bottom:22px}
+.confirm-btns{display:flex;gap:10px;justify-content:flex-end}
+
+.days-ok{color:var(--green);font-weight:600}
+.days-warn{color:var(--gold);font-weight:600}
+.days-hot{color:var(--red);font-weight:600}
+
+.onboard{background:linear-gradient(135deg,#18181b 0%,#27272a 100%);border-radius:var(--r);padding:28px 30px;display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:0}
+.onboard-left{flex:1}
+.onboard-title{font-size:20px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:6px}
+.onboard-sub{font-size:13.5px;color:rgba(255,255,255,.55);line-height:1.5;max-width:400px}
+.onboard-actions{display:flex;gap:10px;flex-shrink:0}
+.onboard-step{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(255,255,255,.06);border-radius:8px;margin-top:16px;border:1px solid rgba(255,255,255,.08)}
+.onboard-step-num{width:26px;height:26px;border-radius:50%;background:var(--gold);color:#18181b;font-size:12px;font-weight:800;display:grid;place-items:center;flex-shrink:0}
+.onboard-step-text{font-size:12.5px;color:rgba(255,255,255,.65)}
+.onboard-step-text strong{color:#fff}
+
+.vcard-days{font-size:11px;font-weight:700;padding:2px 7px;border-radius:4px}
+.vcard-days.ok{background:var(--green-bg);color:var(--green)}
+.vcard-days.warn{background:var(--gold-bg);color:var(--gold)}
+.vcard-days.hot{background:var(--red-bg);color:var(--red)}
+
+/* ── AUTH SCREEN ── */
+#authScreen{position:fixed;inset:0;background:var(--sidebar);display:flex;align-items:center;justify-content:center;z-index:99999}
+.auth-box{background:#1f1f23;border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:40px;width:100%;max-width:400px;box-shadow:0 32px 80px rgba(0,0,0,.5)}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:32px}
+.auth-logo-mark{width:40px;height:40px;background:var(--gold);border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:15px;color:#18181b;font-family:'DM Mono',monospace}
+.auth-logo-text{font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.auth-logo-sub{font-size:10px;color:rgba(255,255,255,.35);letter-spacing:.5px;text-transform:uppercase}
+.auth-title{font-size:22px;font-weight:800;color:#fff;letter-spacing:-.5px;margin-bottom:6px}
+.auth-sub{font-size:13px;color:rgba(255,255,255,.4);margin-bottom:28px}
+.auth-fg{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.auth-fg label{font-size:12px;font-weight:600;color:rgba(255,255,255,.55)}
+.auth-fg input{padding:11px 14px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.1);border-radius:8px;color:#fff;font-family:'DM Sans',sans-serif;font-size:14px;outline:none;transition:border-color .15s}
+.auth-fg input:focus{border-color:var(--gold)}
+.auth-fg input::placeholder{color:rgba(255,255,255,.2)}
+.auth-btn{width:100%;padding:12px;background:var(--gold);border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:#18181b;cursor:pointer;transition:opacity .15s;margin-top:8px}
+.auth-btn:hover{opacity:.9}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-switch{text-align:center;margin-top:20px;font-size:13px;color:rgba(255,255,255,.35)}
+.auth-switch a{color:var(--gold);cursor:pointer;text-decoration:none;font-weight:600}
+.auth-switch a:hover{text-decoration:underline}
+.auth-err{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);color:#fca5a5;border-radius:6px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;display:none}
+.auth-err.show{display:block}
+/* Sync indicator */
+#syncBar{position:fixed;top:0;left:0;right:0;height:2px;background:var(--gold);z-index:9999;display:none;animation:syncPulse 1s infinite}
+@keyframes syncPulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-pill{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(255,255,255,.06);border-radius:8px;margin:0 10px 10px;cursor:pointer;transition:background .15s}
+.user-pill:hover{background:rgba(255,255,255,.1)}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:var(--gold);display:grid;place-items:center;font-size:11px;font-weight:700;color:#18181b;flex-shrink:0}
+.user-email{font-size:11px;color:rgba(255,255,255,.5);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.user-signout{font-size:10px;color:rgba(255,255,255,.25);transition:color .15s}
+.user-pill:hover .user-signout{color:#fca5a5}
+
+/* ── VENDOR AUTOCOMPLETE ── */
+.ac-wrap{position:relative}
+.ac-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border-strong);border-radius:var(--r-sm);box-shadow:var(--shadow-md);z-index:500;max-height:180px;overflow-y:auto;display:none;margin-top:2px}
+.ac-list.open{display:block;animation:fadeI .12s}
+.ac-item{padding:9px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s}
+.ac-item:hover,.ac-item.focused{background:#f4f3ef}
+.ac-item-name{flex:1;font-weight:500}
+.ac-item-hint{font-size:11px;color:var(--text-3)}
+
+/* ── VIN SCANNER ── */
+#vinScanOverlay{position:fixed;inset:0;background:#000;z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center}
+#vinScanOverlay.open{display:flex}
+#vinVideo{width:100%;max-width:500px;border-radius:12px;display:block}
+.scan-frame{position:relative;width:100%;max-width:500px}
+.scan-reticle{position:absolute;left:10%;right:10%;top:35%;bottom:35%;border:2.5px solid var(--gold);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.55)}
+.scan-reticle::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:var(--gold);opacity:.7;animation:scanLine 1.8s ease-in-out infinite}
+@keyframes scanLine{0%,100%{top:10%}50%{top:88%}}
+.scan-label{color:rgba(255,255,255,.7);font-size:13px;margin-top:14px;text-align:center;padding:0 20px}
+.scan-close{margin-top:18px;padding:12px 32px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
+.scan-close:hover{background:rgba(255,255,255,.2)}
+.scan-manual{margin-top:10px;font-size:12px;color:rgba(255,255,255,.35);text-align:center}
+.vin-scan-btn{position:absolute;right:38px;top:50%;transform:translateY(-50%);background:var(--gold);border:none;border-radius:5px;padding:4px 8px;font-size:14px;cursor:pointer;line-height:1;transition:opacity .15s}
+.vin-scan-btn:hover{opacity:.85}
+
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+
+@media(max-width:860px){
+  .sidebar{width:60px;min-width:60px}
+  .logo-text,.logo-sub,.sidebar-section-label,.nav-btn span,.nav-badge,.cta-deal span,.cta-vehicle span{display:none}
+  .sidebar-bottom{padding:12px 8px}
+  .page-body{padding:16px}
+  .stats-grid{grid-template-columns:1fr 1fr}
+  .v-grid{grid-template-columns:1fr}
+  .dp{width:100%}
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">O1</div>
+    <div>
+      <div class="logo-text">Orion One</div>
+      <div class="logo-sub">Wholesale</div>
+    </div>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Menu</div>
+    <button class="nav-btn active" id="nb-dashboard" onclick="nav('dashboard',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+      <span>Dashboard</span>
+    </button>
+    <button class="nav-btn" id="nb-inventory" onclick="nav('inventory',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      <span>Inventory</span>
+      <span class="nav-badge" id="invBadge">0</span>
+    </button>
+    <button class="nav-btn" id="nb-sold" onclick="nav('sold',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>Sold Vehicles</span>
+    </button>
+    <button class="nav-btn" id="nb-pl" onclick="nav('pl',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+      <span>P&amp;L Report</span>
+    </button>
+    <button class="nav-btn" id="nb-bizexp" onclick="nav('bizexp',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+      <span>Business Expenses</span>
+    </button>
+  </div>
+  <div class="sidebar-bottom">
+    <div class="user-pill" id="userPill" onclick="signOut()" title="Sign out">
+      <div class="user-avatar" id="userAvatar">?</div>
+      <div class="user-email" id="userEmail">Loading...</div>
+      <div class="user-signout">Sign out</div>
+    </div>
+    <button class="sidebar-cta cta-deal" onclick="openDeal()" title="Shortcut: D">🤝 <span>Record Deal</span></button>
+    <button class="sidebar-cta cta-vehicle" onclick="openAddVehicle()" title="Shortcut: N">+ <span>Add Vehicle</span></button>
+    <div style="font-size:9.5px;color:rgba(255,255,255,.2);text-align:center;padding:4px 0;letter-spacing:.5px">N = new vehicle &nbsp;·&nbsp; D = deal &nbsp;·&nbsp; / = search</div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page active" id="pg-dashboard">
+    <div class="page-header">
+      <div><div class="ph-title">Dashboard</div><div class="ph-sub" id="dashDate"></div></div>
+      <div class="ph-actions">
+        <button class="btn btn-gold" onclick="openDeal()">🤝 Record Deal</button>
+        <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div id="onboardWrap"></div>
+      <div class="stats-grid" id="dashStats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px;align-items:start">
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title">Recent Inventory</div><div class="card-sub">Last added vehicles</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="nav('inventory',document.getElementById('nb-inventory'))">See all →</button>
+          </div>
+          <div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th>Stock #</th><th>All-In</th><th>Days In</th></tr></thead><tbody id="dashInv"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-head">
+            <div><div class="card-title">Recent Deals</div><div class="card-sub">Latest completed sales</div></div>
+            <button class="btn btn-ghost btn-sm" onclick="nav('sold',document.getElementById('nb-sold'))">See all →</button>
+          </div>
+          <div class="tbl-wrap"><table><thead><tr><th>Vehicle</th><th>Buyer</th><th>Sale Price</th><th>Profit</th></tr></thead><tbody id="dashSold"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pg-inventory">
+    <div class="page-header">
+      <div><div class="ph-title">Active Inventory</div><div class="ph-sub" id="invSub">Loading...</div></div>
+      <div class="ph-actions">
+        <div class="toolbar">
+          <div class="search-box" style="position:relative"><input id="invSearch" placeholder="Search inventory..." oninput="renderInventory()" onkeydown="if(event.key==='Escape'){this.value='';renderInventory();}"><span style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:10px;font-family:'DM Mono',monospace;background:var(--border);color:var(--text-3);padding:1px 5px;border-radius:3px">ESC</span></div>
+          <select class="filter-sel" id="invFilter" onchange="renderInventory()">
+            <option value="">All Sources</option>
+            <option value="Auction">Auction</option>
+            <option value="Dealer">Dealer</option>
+          </select>
+        </div>
+        <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
+      </div>
+    </div>
+    <div class="page-body"><div class="v-grid" id="invGrid"></div></div>
+  </div>
+
+  <div class="page" id="pg-sold">
+    <div class="page-header">
+      <div><div class="ph-title">Sold Vehicles</div><div class="ph-sub" id="soldSub">All completed deals</div></div>
+      <div class="ph-actions">
+        <div class="search-box"><input id="soldSearch" placeholder="Vehicle, buyer, stock..." oninput="renderSold()"></div>
+        <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>Deal Type</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th><th>Date Sold</th><th></th></tr></thead>
+            <tbody id="soldBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="page" id="pg-pl">
+    <div class="page-header">
+      <div><div class="ph-title">Profit &amp; Loss</div><div class="ph-sub">Monthly breakdown</div></div>
+    </div>
+    <div class="page-body">
+      <div class="month-pills" id="monthPills" style="margin-bottom:20px"></div>
+      <div id="plContent"></div>
+    </div>
+  </div>
+  <!-- ─── BUSINESS EXPENSES ─── -->
+  <div class="page" id="pg-bizexp">
+    <div class="page-header">
+      <div><div class="ph-title">Business Expenses</div><div class="ph-sub" id="bizexpSub">Monthly overhead & operating costs</div></div>
+      <div class="ph-actions">
+        <select class="filter-sel" id="bizexpMonthSel" onchange="renderBizExp()"></select>
+        <button class="btn btn-ghost" onclick="openRecurringMgr()">🔁 Recurring</button>
+        <button class="btn btn-dark" onclick="openAddBizExp()">+ Add Expense</button>
+      </div>
+    </div>
+    <div class="page-body" id="bizexpBody"></div>
+  </div>
+</main>
+
+<!-- ══════════ BUSINESS EXPENSE MODAL ══════════ -->
+<div class="modal-overlay" id="mBizExp">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-title" id="bizExpModalTitle">Add Business Expense</div><div class="modal-sub">Record an overhead or operating cost</div></div>
+      <button class="close-btn" onclick="closeModal('mBizExp')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="frow cols1" style="margin-bottom:14px">
+        <div class="fg"><label>Description *</label><input id="be_desc" placeholder="e.g. Office Rent, Insurance, Software..."></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Category</label>
+          <select id="be_cat">
+            <option>Rent / Lease</option>
+            <option>Insurance</option>
+            <option>Utilities</option>
+            <option>Software / Subscriptions</option>
+            <option>Marketing / Advertising</option>
+            <option>Payroll / Contractors</option>
+            <option>Office Supplies</option>
+            <option>Fuel / Transportation</option>
+            <option>Legal / Accounting</option>
+            <option>Licensing / Fees</option>
+            <option>Equipment</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Amount ($) *</label><input id="be_amt" type="number" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Date *</label><input id="be_date" type="date"></div>
+        <div class="fg"><label>Vendor / Payee</label>
+          <div class="ac-wrap">
+            <input id="be_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('be_vendor','be_ac')" onkeydown="acKey(event,'be_vendor','be_ac')" onblur="acBlur('be_ac')">
+            <div class="ac-list" id="be_ac"></div>
+          </div>
+        </div>
+      </div>
+      <div class="frow cols1">
+        <div class="fg"><label>Notes</label><textarea id="be_notes" placeholder="Any additional details..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mBizExp')">Cancel</button>
+      <button class="btn btn-dark" onclick="saveBizExp()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ RECURRING MANAGER MODAL ══════════ -->
+<div class="modal-overlay" id="mRecurringMgr">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div><div class="modal-title">🔁 Recurring Expenses</div><div class="modal-sub">These auto-post to each month on the day you set</div></div>
+      <button class="close-btn" onclick="closeModal('mRecurringMgr')">✕</button>
+    </div>
+    <div class="modal-body" id="recurringMgrBody" style="padding-top:6px"></div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mRecurringMgr')">Close</button>
+      <button class="btn btn-dark" onclick="openAddRecurring()">+ New Recurring</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ ADD / EDIT RECURRING MODAL ══════════ -->
+<div class="modal-overlay" id="mRecurring">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-title" id="recurModalTitle">Add Recurring Expense</div><div class="modal-sub">Auto-posts on the selected day each month</div></div>
+      <button class="close-btn" onclick="closeModal('mRecurring')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="frow cols1" style="margin-bottom:14px">
+        <div class="fg"><label>Description *</label><input id="re_desc" placeholder="e.g. Office Rent, Insurance..."></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Category</label>
+          <select id="re_cat">
+            <option>Rent / Lease</option><option>Insurance</option><option>Utilities</option>
+            <option>Software / Subscriptions</option><option>Marketing / Advertising</option>
+            <option>Payroll / Contractors</option><option>Office Supplies</option>
+            <option>Fuel / Transportation</option><option>Legal / Accounting</option>
+            <option>Licensing / Fees</option><option>Equipment</option><option>Other</option>
+          </select>
+        </div>
+        <div class="fg"><label>Amount ($) *</label><input id="re_amt" type="number" placeholder="0.00" min="0" step="0.01"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Day of Month *</label>
+          <select id="re_day">${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}${[,'st','nd','rd'][i+1]||'th'}</option>`).join('')}</select>
+        </div>
+        <div class="fg"><label>Vendor / Payee</label>
+          <div class="ac-wrap">
+            <input id="re_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('re_vendor','re_ac')" onkeydown="acKey(event,'re_vendor','re_ac')" onblur="acBlur('re_ac')">
+            <div class="ac-list" id="re_ac"></div>
+          </div>
+        </div>
+      </div>
+      <div class="frow cols1">
+        <div class="fg"><label>Notes</label><textarea id="re_notes" placeholder="Any additional details..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mRecurring');openRecurringMgr()">Cancel</button>
+      <button class="btn btn-dark" onclick="saveRecurring()">Save</button>
+    </div>
+  </div>
+</div>
+<div class="dp-overlay" id="dpOverlay" onclick="closeDP()"></div>
+<div class="dp" id="dp">
+  <div class="dp-header">
+    <div><div class="dp-name" id="dpName">—</div><div class="dp-stock-line"><span class="dp-stock" id="dpStock">—</span><span id="dpBadge"></span></div></div>
+    <button class="close-btn" onclick="closeDP()">✕</button>
+  </div>
+  <div class="dp-body" id="dpBody"></div>
+  <div class="dp-footer" id="dpFooter"></div>
+</div>
+
+<div class="modal-overlay" id="mVehicle">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-title" id="vModalTitle">Add Vehicle</div><div class="modal-sub">Fill in the vehicle details below</div></div>
+      <button class="close-btn" onclick="closeModal('mVehicle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fs">
+        <div class="fs-title">🚗 Vehicle Information</div>
+        <div class="frow">
+          <div class="fg">
+            <label>VIN <span>⚡ auto-decodes at 17 chars</span></label>
+            <div class="vin-field">
+              <input id="f_vin" maxlength="17" oninput="onVin(this)" placeholder="Enter 17-character VIN" autocomplete="off" style="padding-right:70px">
+              <button class="vin-scan-btn" onclick="openVinScanner()" title="Scan VIN barcode">📷</button>
+              <span class="vin-counter" id="vinCtr">0/17</span>
+            </div>
+            <div class="vin-pill" id="vinPill"></div>
+          </div>
+          <div class="fg"><label>Stock # <span>auto-gen if blank</span></label><input id="f_stock" placeholder="e.g. OS4F2CU9"></div>
+        </div>
+        <div class="frow cols3">
+          <div class="fg"><label>Year</label><input id="f_year" type="number" placeholder="2022" min="1990" max="2030"></div>
+          <div class="fg"><label>Make</label><input id="f_make" placeholder="Toyota"></div>
+          <div class="fg"><label>Model</label><input id="f_model" placeholder="Camry"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label>Color</label><input id="f_color" placeholder="Silver"></div>
+          <div class="fg"><label>Mileage</label><input id="f_mileage" type="number" placeholder="45000"></div>
+        </div>
+      </div>
+      <div class="fs">
+        <div class="fs-title">🏷️ Purchase Details</div>
+        <div class="frow">
+          <div class="fg"><label>Source</label><select id="f_src"><option value="Auction">Auction</option><option value="Dealer">Dealer</option></select></div>
+          <div class="fg"><label>Source Name</label><input id="f_srcname" placeholder="Manheim, ABC Motors..."></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label>Purchase Date</label><input id="f_date" type="date"></div>
+          <div class="fg"><label>Purchase Price ($)</label><input id="f_price" type="number" placeholder="8500"></div>
+        </div>
+        <div class="frow cols1">
+          <div class="fg"><label>Notes / Condition</label><textarea id="f_notes" placeholder="Condition, repairs needed, anything worth remembering..."></textarea></div>
+        </div>
+      </div>
+      <div class="fs">
+        <div class="fs-title">💰 Expenses</div>
+        <div class="exp-list" id="expList"></div>
+        <button class="btn btn-ghost btn-sm" onclick="addExpRow()" style="margin-top:10px">+ Add Expense</button>
+      </div>
+      <div class="fs">
+        <div class="fs-title">📷 Photos <span style="font-size:10px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Up to 10 photos · First photo shown as cover</span></div>
+        <div class="photo-upload-zone" id="photoZone" ondragover="photoDrag(event,true)" ondragleave="photoDrag(event,false)" ondrop="photoDrop(event)">
+          <input type="file" id="photoInput" accept="image/*" multiple onchange="photoAdd(this.files)">
+          <div class="photo-upload-icon">📷</div>
+          <div class="photo-upload-label">Click to upload or drag & drop</div>
+          <div class="photo-upload-sub">JPG, PNG, WEBP — max 5MB each</div>
+        </div>
+        <div class="photo-thumbs" id="photoThumbs"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mVehicle')">Cancel</button>
+      <button class="btn btn-dark" onclick="saveVehicle()">Save Vehicle</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="mDeal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div><div class="modal-title">🤝 Record Deal</div><div class="modal-sub">Select a vehicle → set price → enter buyer info</div></div>
+      <button class="close-btn" onclick="closeModal('mDeal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fs">
+        <div class="fs-title">🚗 Select Vehicle</div>
+        <div class="vpicker" id="dealPicker"><div class="empty" style="padding:20px">No active inventory</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="fs">
+          <div class="fs-title">💵 Deal Details</div>
+          <div class="frow cols1"><div class="fg"><label>Sale Price ($)</label><input id="d_price" type="number" placeholder="15000" oninput="calcProfit()"></div></div>
+          <div class="frow">
+            <div class="fg"><label>Date of Sale</label><input id="d_date" type="date"></div>
+            <div class="fg"><label>Payment Method</label><select id="d_pay"><option>Check</option><option>Wire Transfer</option><option>Cash</option><option>Dealer Trade</option><option>Floorplan</option><option>Other</option></select></div>
+          </div>
+          <div class="frow cols1"><div class="fg"><label>Deal Type</label><select id="d_type"><option>Wholesale</option><option>Retail</option><option>Auction Sale</option><option>Trade</option></select></div></div>
+          <div id="profitBar"></div>
+        </div>
+        <div class="fs">
+          <div class="fs-title">👤 Buyer Information</div>
+          <div class="frow cols1"><div class="fg"><label>Dealership / Buyer Name *</label><input id="d_buyer" placeholder="ABC Motors LLC"></div></div>
+          <div class="frow cols1"><div class="fg"><label>Contact Person</label><input id="d_contact" placeholder="John Smith"></div></div>
+          <div class="frow">
+            <div class="fg"><label>Phone</label><input id="d_phone" type="tel" placeholder="(555) 000-0000"></div>
+            <div class="fg"><label>Email</label><input id="d_email" type="email" placeholder="buyer@dealer.com"></div>
+          </div>
+          <div class="frow">
+            <div class="fg"><label>Dealer License #</label><input id="d_lic" placeholder="DLR-123456"></div>
+            <div class="fg"><label>Address</label><input id="d_addr" placeholder="City, State"></div>
+          </div>
+          <div class="frow cols1"><div class="fg"><label>Deal Notes</label><textarea id="d_notes" placeholder="Any notes, conditions, fees..."></textarea></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mDeal')">Cancel</button>
+      <button class="btn btn-green" onclick="confirmDeal()">✓ Confirm Deal</button>
+    </div>
+  </div>
+</div>
+
+<div id="confirmOverlay" class="confirm-overlay" style="display:none">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirmIcon">⚠️</div>
+    <div class="confirm-title" id="confirmTitle">Are you sure?</div>
+    <div class="confirm-msg" id="confirmMsg"></div>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" id="confirmCancel">Cancel</button>
+      <button class="btn btn-red" id="confirmOk">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<div class="lightbox" id="lightbox" onclick="lbClose(event)">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lbImg" src="" alt="">
+  <div class="lightbox-nav">
+    <button class="lightbox-btn" onclick="lbNav(-1)">‹</button>
+    <span class="lightbox-counter" id="lbCounter"></span>
+    <button class="lightbox-btn" onclick="lbNav(1)">›</button>
+  </div>
+</div>
+
+<div id="vinScanOverlay">
+  <div class="scan-frame">
+    <video id="vinVideo" autoplay playsinline muted></video>
+    <div class="scan-reticle"></div>
+  </div>
+  <div class="scan-label">Point camera at the VIN barcode on the driver's door jamb sticker</div>
+  <button class="scan-close" onclick="closeVinScanner()">✕ Close Scanner</button>
+  <div class="scan-manual">Or type the VIN manually in the field</div>
+</div>
+
+<div id="syncBar"></div>
+
+<!-- ══════════ AUTH SCREEN ══════════ -->
+<div id="authScreen">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-logo-mark">O1</div>
+      <div>
+        <div class="auth-logo-text">Orion One</div>
+        <div class="auth-logo-sub">Wholesale Management</div>
+      </div>
+    </div>
+    <div id="authView">
+      <div class="auth-title" id="authTitle">Welcome back</div>
+      <div class="auth-sub" id="authSubtitle">Sign in to your Orion One account</div>
+      <div class="auth-err" id="authErr"></div>
+      <div class="auth-fg"><label>Email</label><input id="auth_email" type="email" placeholder="you@example.com" autocomplete="email"></div>
+      <div class="auth-fg"><label>Password</label><input id="auth_pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+      <button class="auth-btn" id="authSubmitBtn" onclick="authSubmit()">Sign In</button>
+      <div style="text-align:center;margin-top:16px;font-size:12px;color:rgba(255,255,255,.25)">Access is by invitation only</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── SUPABASE INIT ──
+const SUPA_URL = 'https://afxcexxblgguvtomnhtz.supabase.co';
+const SUPA_KEY = 'sb_publishable_ilt1G1YKz3PSK5w6JPKeZg_ivm3lgkR';
+const _supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
+  auth: { detectSessionInUrl: true, persistSession: true }
+});
+
+// ── HANDLE EMAIL CONFIRMATION REDIRECT ──
+// When Supabase redirects back with #access_token=... in the URL, exchange it
+(async () => {
+  const hash = window.location.hash;
+  if (hash && hash.includes('access_token')) {
+    const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    if (accessToken) {
+      await _supa.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      // Clean up URL
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }
+})();
+let cars = [], bizExps = [], recurringExps = [];
+let editId=null,dealCarId=null,dpCarId=null,curPage='dashboard',plMonth=null;
+let currentUser = null;
+const CATS=['Parts & Repair','Auction / Purchase Fees','Transport / Towing','Detailing & Cosmetic','Other'];
+
+// ── SYNC INDICATOR ──
+function syncStart(){$('syncBar').style.display='block';}
+function syncEnd(){$('syncBar').style.display='none';}
+
+// ── CLOUD SAVE ──
+async function save(){
+  if(!currentUser) return;
+  syncStart();
+  try {
+    await Promise.all([
+      _supa.from('cars').upsert(cars.map(c=>({id:c.id,user_id:currentUser.id,data:c})),{onConflict:'id'}),
+      _supa.from('biz_exps').upsert(bizExps.map(e=>({id:e.id,user_id:currentUser.id,data:e})),{onConflict:'id'}),
+      _supa.from('recurring_exps').upsert(recurringExps.map(r=>({id:r.id,user_id:currentUser.id,data:r})),{onConflict:'id'})
+    ]);
+  } catch(e){ toast('Sync error — check connection','er'); console.error(e); }
+  finally{ syncEnd(); }
+}
+
+async function deleteFromCloud(table, id){
+  if(!currentUser) return;
+  await _supa.from(table).delete().eq('id', id);
+}
+
+// ── LOAD ALL DATA FROM CLOUD ──
+async function loadData(){
+  syncStart();
+  try {
+    const [carsRes, expRes, recRes] = await Promise.all([
+      _supa.from('cars').select('data').eq('user_id', currentUser.id),
+      _supa.from('biz_exps').select('data').eq('user_id', currentUser.id),
+      _supa.from('recurring_exps').select('data').eq('user_id', currentUser.id)
+    ]);
+    cars = (carsRes.data||[]).map(r=>r.data);
+    bizExps = (expRes.data||[]).map(r=>r.data);
+    recurringExps = (recRes.data||[]).map(r=>r.data);
+  } catch(e){ toast('Failed to load data','er'); console.error(e); }
+  finally{ syncEnd(); }
+}
+
+// ── AUTH ──
+let authMode = 'signin';
+
+async function authSubmit(){
+  const email = $('auth_email').value.trim();
+  const pass  = $('auth_pass').value;
+  const btn   = $('authSubmitBtn');
+  const err   = $('authErr');
+  err.classList.remove('show');
+  if(!email||!pass){ err.textContent='Please enter your email and password.'; err.classList.add('show'); return; }
+  btn.disabled=true; btn.textContent='Signing in…';
+  const result = await _supa.auth.signInWithPassword({email, password:pass});
+  btn.disabled=false; btn.textContent='Sign In';
+  if(result.error){
+    err.textContent = result.error.message==='Invalid login credentials'
+      ? 'Incorrect email or password. Please try again.'
+      : result.error.message;
+    err.classList.add('show');
+  }
+}
+
+async function signOut(){
+  customConfirm({title:'Sign out?',msg:'You will be returned to the login screen.',icon:'👋',okLabel:'Sign Out',okClass:'btn-dark',
+    onOk:async()=>{ await _supa.auth.signOut(); location.reload(); }
+  });
+}
+
+// Listen for auth state
+_supa.auth.onAuthStateChange(async (event, session) => {
+  if(session?.user){
+    currentUser = session.user;
+    // Update user pill
+    const initials = currentUser.email.slice(0,2).toUpperCase();
+    $('userAvatar').textContent = initials;
+    $('userEmail').textContent = currentUser.email;
+    // Load data then boot app
+    await loadData();
+    autoPostRecurring();
+    $('authScreen').style.display='none';
+    $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+    renderDash(); updateBadge();
+  }
+});
+
+// ── KEYBOARD shortcut for auth form ──
+document.addEventListener('keydown', e=>{
+  if($('authScreen').style.display!=='none' && e.key==='Enter') authSubmit();
+});
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+function $(id){return document.getElementById(id);}
+// XSS protection — escape user input before rendering as innerHTML
+function esc(str){
+  if(str==null||str===undefined)return'—';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmt(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtShort(n){return fmt(n);}
+function expTotal(c){return(c.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);}
+function allIn(c){return Number(c.price||0)+expTotal(c);}
+function profit(c){return Number(c.salePrice||0)-allIn(c);}
+function cname(c){return[c.year,c.make,c.model].filter(Boolean).join(' ')||'Unknown Vehicle';}
+function daysIn(d,colored=false){
+  if(!d)return'—';
+  const n=Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000));
+  const label=n===0?'Today':n===1?'1 day':`${n}d`;
+  if(!colored)return label;
+  const cls=n<=14?'ok':n<=30?'warn':'hot';
+  return`<span class="vcard-days ${cls}">${label}</span>`;
+}
+// Input sanitisation for numbers — prevent negative values sneaking through
+function posNum(val,fallback=0){const n=parseFloat(val);return(isNaN(n)||n<0)?fallback:n;}
+
+function nav(pg,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  $('pg-'+pg).classList.add('active');
+  if(el)el.classList.add('active');
+  curPage=pg;closeDP();
+  if(pg==='dashboard')renderDash();
+  if(pg==='inventory')renderInventory();
+  if(pg==='sold')renderSold();
+  if(pg==='pl')renderPL();
+  if(pg==='bizexp')renderBizExp();
+}
+
+function toast(msg,type='ok',dur=3500){
+  const t=document.createElement('div');
+  t.className='toast '+type;
+  const icons={ok:'✅',er:'❌',info:'ℹ️'};
+  t.innerHTML=`<span style="flex-shrink:0">${icons[type]||'✅'}</span><span>${msg}</span>`;
+  t.style.cursor='pointer';t.onclick=()=>t.remove();
+  $('toasts').appendChild(t);
+  setTimeout(()=>{t.style.transition='opacity .3s';t.style.opacity='0';},dur);
+  setTimeout(()=>t.remove(),dur+350);
+}
+
+function customConfirm({title='Are you sure?',msg='',icon='⚠️',okLabel='Confirm',okClass='btn-red',onOk}){
+  const ov=$('confirmOverlay');
+  $('confirmIcon').textContent=icon;$('confirmTitle').textContent=title;
+  $('confirmMsg').textContent=msg;$('confirmOk').textContent=okLabel;
+  $('confirmOk').className='btn '+okClass;ov.style.display='flex';
+  $('confirmOk').onclick=()=>{ov.style.display='none';onOk&&onOk();};
+  $('confirmCancel').onclick=()=>{ov.style.display='none';};
+  ov.onclick=(e)=>{if(e.target===ov)ov.style.display='none';};
+}
+
+function openModal(id){$(id).classList.add('open');$(id).onclick=e=>{if(e.target===$(id))closeModal(id);};}
+function closeModal(id){$(id).classList.remove('open');if(id==='mVehicle')closeVinScanner();}
+
+function openDP(id){dpCarId=id;renderDP();$('dp').classList.add('open');$('dpOverlay').classList.add('open');}
+function closeDP(){$('dp').classList.remove('open');$('dpOverlay').classList.remove('open');dpCarId=null;}
+
+function renderDP(){
+  const c=cars.find(x=>x.id===dpCarId);if(!c)return;
+  const tc=allIn(c),pr=c.status==='Sold'?profit(c):null;
+  $('dpName').textContent=cname(c);
+  $('dpStock').textContent=c.stock||'No Stock #';
+  $('dpBadge').innerHTML=c.status==='Sold'?'<span class="badge b-sold"><span class="b-dot" style="background:var(--green)"></span>Sold</span>':'<span class="badge b-active"><span class="b-dot" style="background:var(--blue)"></span>Active</span>';
+
+  let dealRibbon='';
+  if(c.status==='Sold'){
+    const prVal=profit(c);
+    dealRibbon=`<div class="deal-ribbon"><div class="deal-ribbon-label">Deal Summary</div><div class="deal-ribbon-grid">
+      <div class="deal-ribbon-item"><label>Buyer</label><span style="font-size:13px;font-family:'DM Sans',sans-serif">${c.buyer||'—'}</span></div>
+      <div class="deal-ribbon-item"><label>Sale Price</label><span>${fmt(c.salePrice)}</span></div>
+      <div class="deal-ribbon-item"><label>Date Sold</label><span style="font-size:13px;font-family:'DM Sans',sans-serif">${c.soldDate||'—'}</span></div>
+      <div class="deal-ribbon-item"><label>${prVal>=0?'Profit':'Loss'}</label><span class="${prVal>=0?'profit-val':'loss-val'}">${prVal>=0?'+':''}${fmt(prVal)}</span></div>
+    </div></div>`;
+  }
+
+  let buyerSection='';
+  if(c.status==='Sold'&&(c.buyerPhone||c.buyerEmail||c.buyerLicense||c.buyerAddress||c.buyerContact2||c.dealPayment)){
+    buyerSection=`<div class="dp-section"><div class="dp-section-title">👤 Buyer Details</div><div class="dp-grid">
+      ${c.buyerContact2?`<div class="dp-item"><label>Contact</label><span>${c.buyerContact2}</span></div>`:''}
+      ${c.buyerPhone?`<div class="dp-item"><label>Phone</label><span>${c.buyerPhone}</span></div>`:''}
+      ${c.buyerEmail?`<div class="dp-item"><label>Email</label><span style="font-size:12px">${c.buyerEmail}</span></div>`:''}
+      ${c.buyerLicense?`<div class="dp-item"><label>License #</label><span>${c.buyerLicense}</span></div>`:''}
+      ${c.buyerAddress?`<div class="dp-item" style="grid-column:1/-1"><label>Address</label><span>${c.buyerAddress}</span></div>`:''}
+      ${c.dealPayment?`<div class="dp-item"><label>Payment</label><span>${c.dealPayment}</span></div>`:''}
+      ${c.dealType?`<div class="dp-item"><label>Deal Type</label><span>${c.dealType}</span></div>`:''}
+    </div></div>`;
+  }
+  if(c.status==='Sold'&&c.dealNotes){
+    buyerSection+=`<div class="dp-section"><div class="dp-section-title">📝 Deal Notes</div><div class="dp-notes">${c.dealNotes}</div></div>`;
+  }
+
+  const expRows=(c.expenses||[]).map((e,i)=>`<div class="cost-row"><span class="cost-label indent">↳ ${e.category}${c.status!=='Sold'?`<button class="exp-remove" onclick="delExp('${c.id}',${i})" title="Remove">✕</button>`:''}</span><span class="cost-amount">${fmt(e.amount)}</span></div>`).join('');
+
+  const qadd=c.status!=='Sold'?`<div class="qadd"><div class="qadd-label">+ Add Expense</div><div class="qadd-row">
+    <select id="qa_cat">${CATS.map(ct=>`<option>${ct}</option>`).join('')}</select>
+    <input id="qa_amt" type="number" placeholder="$0.00" step="0.01" min="0" onkeydown="if(event.key==='Enter')qaExp('${c.id}')">
+    <button class="btn btn-dark btn-sm" onclick="qaExp('${c.id}')">Add</button>
+  </div></div>`:'';
+
+  // Photo gallery
+  let photoGallery='';
+  if(c.photos&&c.photos.length){
+    const photos=c.photos;
+    const safePh=JSON.stringify(photos).replace(/'/g,"\\'");
+    if(photos.length===1){
+      photoGallery=`<div class="dp-section">
+        <div class="dp-section-title">📷 Photos <span style="font-weight:400">${photos.length}</span></div>
+        <div class="dp-gallery-main" onclick="openLightboxArr(${safePh.replace(/"/g,'&quot;')},0)"><img src="${photos[0]}" alt="Vehicle photo"></div>
+      </div>`;
+    } else {
+      const extras=photos.length>3?`<div class="dp-gallery-more" onclick="openLightboxArr(${safePh.replace(/"/g,'&quot;')},2)">+${photos.length-2} more</div>`:'';
+      const thumbs=photos.slice(1,photos.length>3?2:photos.length).map((p,i)=>`<div class="dp-gallery-thumb" onclick="openLightboxArr(${safePh.replace(/"/g,'&quot;')},${i+1})"><img src="${p}" alt="Photo ${i+2}"></div>`).join('');
+      photoGallery=`<div class="dp-section">
+        <div class="dp-section-title">📷 Photos <span style="font-weight:400">${photos.length}</span></div>
+        <div class="dp-gallery">
+          <div class="dp-gallery-main" onclick="openLightboxArr(${safePh.replace(/"/g,'&quot;')},0)"><img src="${photos[0]}" alt="Cover photo"></div>
+          ${thumbs}${extras}
+        </div>
+      </div>`;
+    }
+  }
+
+  $('dpBody').innerHTML=`${dealRibbon}
+    ${photoGallery}
+    <div class="dp-section"><div class="dp-section-title">🚗 Vehicle Info</div><div class="dp-grid">
+      <div class="dp-item"><label>VIN</label><span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.3px">${c.vin||'—'}</span></div>
+      <div class="dp-item"><label>Color</label><span>${c.color||'—'}</span></div>
+      <div class="dp-item"><label>Mileage</label><span>${c.mileage?Number(c.mileage).toLocaleString()+' mi':'—'}</span></div>
+      <div class="dp-item"><label>Source</label><span>${c.source}${c.sourceName?' · '+c.sourceName:''}</span></div>
+      <div class="dp-item"><label>Purchase Date</label><span>${c.purchaseDate||'—'}</span></div>
+      <div class="dp-item"><label>Days in Stock</label><span>${daysIn(c.purchaseDate)}</span></div>
+    </div>${c.notes?`<div class="dp-notes">${c.notes}</div>`:''}</div>
+    ${buyerSection}
+    <div class="dp-section"><div class="dp-section-title">💰 Cost Breakdown <span style="font-weight:400;color:var(--text-3);font-size:10px">${(c.expenses||[]).length} expense${(c.expenses||[]).length!==1?'s':''}</span></div>
+      <div class="cost-list">
+        <div class="cost-row"><span class="cost-label" style="font-weight:600">Purchase Price</span><span class="cost-amount">${fmt(c.price)}</span></div>
+        ${expRows||'<div class="cost-row"><span class="cost-label" style="color:var(--text-3);font-style:italic">No expenses yet</span><span></span></div>'}
+        <div class="cost-row total-row"><span class="cost-label">All-In Cost</span><span class="cost-amount">${fmt(tc)}</span></div>
+        ${c.status==='Sold'?`<div class="cost-row"><span class="cost-label">Sale Price</span><span class="cost-amount">${fmt(c.salePrice)}</span></div><div class="cost-row ${pr>=0?'profit-row':'loss-row'}"><span>${pr>=0?'✅ Profit':'❌ Loss'}</span><span class="cost-amount">${pr>=0?'+':''}${fmt(pr)}</span></div>`:''}
+      </div>${qadd}</div>`;
+
+  let foot='';
+  if(c.status==='Active')foot+=`<button class="btn btn-green" onclick="closeDP();openDeal('${c.id}')">🤝 Record Sale</button>`;
+  foot+=`<button class="btn btn-ghost" onclick="openEditVehicle('${c.id}')">✏️ Edit</button>`;
+  foot+=`<button class="btn btn-ghost" onclick="delCar('${c.id}')" style="color:var(--red);border-color:var(--red)">🗑</button>`;
+  $('dpFooter').innerHTML=foot;
+}
+
+function qaExp(id){
+  const cat=$('qa_cat').value,amt=parseFloat($('qa_amt').value);
+  if(!amt||amt<=0){$('qa_amt').style.borderColor='var(--red)';setTimeout(()=>$('qa_amt').style.borderColor='',1500);return;}
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  if(!c.expenses)c.expenses=[];
+  c.expenses.push({category:cat,amount:amt});
+  save();renderAll();renderDP();$('qa_amt').value='';
+  toast(`Expense added — ${fmt(amt)}`);
+}
+
+function delExp(id,idx){
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  c.expenses.splice(idx,1);save();renderAll();renderDP();
+  toast('Expense removed','info');
+}
+
+function openAddVehicle(){
+  editId=null;$('vModalTitle').textContent='Add Vehicle';
+  ['f_vin','f_stock','f_year','f_make','f_model','f_color','f_mileage','f_srcname','f_price','f_notes'].forEach(id=>$(id).value='');
+  $('f_src').value='Auction';$('f_date').value=new Date().toISOString().slice(0,10);
+  $('expList').innerHTML='';$('vinPill').className='vin-pill';$('vinCtr').textContent='0/17';
+  pendingPhotos=[];renderPhotoThumbs();
+  addExpRow();openModal('mVehicle');
+}
+
+function openEditVehicle(id){
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  editId=id;$('vModalTitle').textContent='Edit Vehicle';
+  $('f_vin').value=c.vin||'';$('f_stock').value=c.stock||'';$('f_year').value=c.year||'';
+  $('f_make').value=c.make||'';$('f_model').value=c.model||'';$('f_color').value=c.color||'';
+  $('f_mileage').value=c.mileage||'';$('f_src').value=c.source||'Auction';
+  $('f_srcname').value=c.sourceName||'';$('f_date').value=c.purchaseDate||'';
+  $('f_price').value=c.price||'';$('f_notes').value=c.notes||'';
+  $('expList').innerHTML='';
+  (c.expenses||[]).forEach(e=>addExpRow(e));
+  if(!(c.expenses||[]).length)addExpRow();
+  $('vinCtr').textContent=(c.vin||'').length+'/17';$('vinPill').className='vin-pill';
+  pendingPhotos=[...(c.photos||[])];renderPhotoThumbs();
+  openModal('mVehicle');
+}
+
+function addExpRow(e={}){
+  const row=document.createElement('div');row.className='exp-row';
+  row.innerHTML=`<select>${CATS.map(c=>`<option${e.category===c?' selected':''}>${c}</option>`).join('')}</select>
+    <input type="number" placeholder="Amount $" value="${e.amount||''}" step="0.01" min="0">
+    <button class="exp-del-btn" onclick="this.closest('.exp-row').remove()" title="Remove">✕</button>`;
+  $('expList').appendChild(row);
+}
+
+function getExps(){
+  return[...$('expList').querySelectorAll('.exp-row')].map(r=>({
+    category:r.querySelector('select').value,
+    amount:parseFloat(r.querySelector('input').value)||0
+  })).filter(e=>e.amount>0);
+}
+
+function saveVehicle(){
+  const make=$('f_make').value.trim(),model=$('f_model').value.trim();
+  if(!make){toast('Please enter Make','er');$('f_make').focus();return;}
+  if(!model){toast('Please enter Model','er');$('f_model').focus();return;}
+  const vin=$('f_vin').value.trim().toUpperCase();
+  // Duplicate VIN check
+  if(vin&&vin.length===17){
+    const dupe=cars.find(c=>c.vin===vin&&c.id!==editId);
+    if(dupe){toast(`VIN already exists — ${cname(dupe)} (${dupe.stock||'no stock #'})`, 'er');return;}
+  }
+  const price=posNum($('f_price').value);
+  const d={
+    vin,stock:$('f_stock').value.trim()||autoStock(vin),
+    year:$('f_year').value.trim(),make,model,
+    color:$('f_color').value.trim(),
+    mileage:$('f_mileage').value?posNum($('f_mileage').value):'',
+    source:$('f_src').value,sourceName:$('f_srcname').value.trim(),
+    purchaseDate:$('f_date').value,
+    price,
+    notes:$('f_notes').value.trim(),
+    expenses:getExps(),
+    photos:[...pendingPhotos],
+    status:'Active'
+  };
+  if(editId){
+    const idx=cars.findIndex(c=>c.id===editId);
+    const old=cars[idx];
+    d.id=editId;
+    if(old.status==='Sold'){
+      d.status='Sold';
+      Object.assign(d,{salePrice:old.salePrice,buyer:old.buyer,buyerContact:old.buyerContact,soldDate:old.soldDate,buyerPhone:old.buyerPhone,buyerEmail:old.buyerEmail,buyerContact2:old.buyerContact2,buyerLicense:old.buyerLicense,buyerAddress:old.buyerAddress,dealPayment:old.dealPayment,dealType:old.dealType,dealNotes:old.dealNotes});
+    }
+    cars[idx]=d;
+    toast('Vehicle updated ✓');
+  } else {
+    d.id=uid();cars.unshift(d);
+    toast(`Vehicle added — ${cname(d)}`);
+  }
+  save();closeModal('mVehicle');renderAll();
+  if(editId&&dpCarId===editId)renderDP();
+}
+
+function autoStock(vin){
+  if(vin&&vin.length>=6)return'OS'+vin.slice(-6).toUpperCase();
+  const max=cars.reduce((m,c)=>Math.max(m,parseInt((c.stock||'').replace(/\D/g,''))||0),0);
+  return'OS'+String(max+1).padStart(6,'0');
+}
+
+function delCar(id){
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  customConfirm({title:'Delete vehicle?',msg:`${cname(c)} (${c.stock||'no stock #'}) will be permanently removed.`,
+    icon:'🗑️',okLabel:'Delete',okClass:'btn-red',
+    onOk:async()=>{cars=cars.filter(x=>x.id!==id);await deleteFromCloud('cars',id);closeDP();renderAll();toast('Vehicle deleted','info');}});
+}
+
+function openDeal(preId){
+  dealCarId=preId||null;
+  const active=cars.filter(c=>c.status!=='Sold');
+  $('dealPicker').innerHTML=active.length?active.map(c=>`
+    <div class="vpick-item ${c.id===preId?'sel':''}" onclick="pickCar('${c.id}',this)">
+      <span class="vpi-stk">${c.stock||'—'}</span>
+      <span class="vpi-name">${cname(c)}</span>
+      <span class="vpi-cost">${fmt(allIn(c))}</span>
+    </div>`).join(''):'<div class="empty" style="padding:20px">No active inventory</div>';
+  ['d_buyer','d_contact','d_phone','d_email','d_lic','d_addr','d_notes','d_price'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  $('d_date').value=new Date().toISOString().slice(0,10);
+  $('d_pay').value='Check';$('d_type').value='Wholesale';$('profitBar').innerHTML='';
+  closeDP();openModal('mDeal');if(preId)calcProfit();
+}
+
+function pickCar(id,el){
+  dealCarId=id;
+  document.querySelectorAll('.vpick-item').forEach(i=>i.classList.remove('sel'));
+  el.classList.add('sel');calcProfit();
+}
+
+function calcProfit(){
+  const c=cars.find(x=>x.id===dealCarId);const sp=parseFloat($('d_price').value)||0;
+  if(!c||!sp){$('profitBar').innerHTML='';return;}
+  const tc=allIn(c),pr=sp-tc,margin=sp>0?((pr/sp)*100).toFixed(1):0;
+  const col=pr>=0?'var(--green)':'var(--red)';
+  $('profitBar').innerHTML=`<div class="profit-bar" style="margin-top:12px">
+    <div class="pbar-cell"><div class="pbar-label">All-In</div><div class="pbar-val">${fmtShort(tc)}</div></div>
+    <div class="pbar-cell"><div class="pbar-label">Sale</div><div class="pbar-val" style="color:var(--blue)">${fmtShort(sp)}</div></div>
+    <div class="pbar-cell"><div class="pbar-label">${pr>=0?'Profit':'Loss'}</div><div class="pbar-val" style="color:${col}">${pr>=0?'+':''}${fmtShort(pr)}</div></div>
+    <div class="pbar-cell"><div class="pbar-label">Margin</div><div class="pbar-val" style="color:${col}">${margin}%</div></div>
+  </div>`;
+}
+
+function confirmDeal(){
+  const buyer=$('d_buyer').value.trim(),sp=posNum($('d_price').value);
+  if(!dealCarId){toast('Please select a vehicle','er');return;}
+  if(!buyer){toast('Please enter buyer name','er');$('d_buyer').focus();return;}
+  if(!sp||sp<=0){toast('Please enter a valid sale price','er');$('d_price').focus();return;}
+  if(!$('d_date').value){toast('Please enter a sale date','er');$('d_date').focus();return;}
+  const c=cars.find(x=>x.id===dealCarId);if(!c)return;
+  const pr=sp-allIn(c);
+  Object.assign(c,{
+    status:'Sold',salePrice:sp,soldDate:$('d_date').value,buyer,
+    buyerContact2:$('d_contact').value.trim(),
+    buyerPhone:$('d_phone').value.trim(),
+    buyerEmail:$('d_email').value.trim(),
+    buyerContact:$('d_phone').value.trim()||$('d_email').value.trim(),
+    buyerLicense:$('d_lic').value.trim(),
+    buyerAddress:$('d_addr').value.trim(),
+    dealPayment:$('d_pay').value,dealType:$('d_type').value,
+    dealNotes:$('d_notes').value.trim()
+  });
+  save();closeModal('mDeal');renderAll();
+  toast(`Deal recorded! ${cname(c)} — ${pr>=0?'Profit':'Loss'}: ${fmt(Math.abs(pr))}`,pr>=0?'ok':'info');
+}
+
+function renderAll(){
+  updateBadge();
+  if(curPage==='dashboard')renderDash();
+  if(curPage==='inventory')renderInventory();
+  if(curPage==='sold')renderSold();
+  if(curPage==='pl')renderPL();
+  if(curPage==='bizexp')renderBizExp();
+}
+
+function updateBadge(){$('invBadge').textContent=cars.filter(c=>c.status!=='Sold').length;}
+
+// ── VIN SCANNER ──
+let vinScanner = null, vinStream = null;
+
+async function openVinScanner(){
+  const overlay = $('vinScanOverlay');
+  overlay.classList.add('open');
+  try {
+    // Request camera — prefer rear camera on mobile
+    vinStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const video = $('vinVideo');
+    video.srcObject = vinStream;
+    await video.play();
+
+    // Init ZXing scanner
+    const hints = new Map();
+    const formats = [
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.DATA_MATRIX,
+      ZXing.BarcodeFormat.QR_CODE
+    ];
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
+    vinScanner = new ZXing.BrowserMultiFormatReader(hints);
+
+    vinScanner.decodeFromVideoElementContinuously(video, (result, err) => {
+      if(result){
+        const text = result.getText().replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
+        // VINs are exactly 17 chars
+        if(text.length === 17){
+          closeVinScanner();
+          $('f_vin').value = text;
+          onVin($('f_vin'));
+          toast('VIN scanned successfully ✓');
+        }
+      }
+    });
+  } catch(e){
+    closeVinScanner();
+    if(e.name === 'NotAllowedError'){
+      toast('Camera permission denied — please allow camera access','er');
+    } else if(e.name === 'NotFoundError'){
+      toast('No camera found on this device','er');
+    } else {
+      toast('Scanner error — type VIN manually','er');
+      console.error(e);
+    }
+  }
+}
+
+function closeVinScanner(){
+  $('vinScanOverlay').classList.remove('open');
+  if(vinScanner){ try{ vinScanner.reset(); }catch(e){} vinScanner=null; }
+  if(vinStream){ vinStream.getTracks().forEach(t=>t.stop()); vinStream=null; }
+}
+function getKnownVendors(){
+  const all=[...bizExps,...recurringExps]
+    .map(e=>e.vendor||'').filter(Boolean);
+  // Unique, sorted by frequency
+  const freq={};
+  all.forEach(v=>{freq[v]=(freq[v]||0)+1;});
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([v])=>v);
+}
+
+let acFocusIdx=-1;
+
+function acShow(inputId, listId){
+  const val=$(inputId).value.trim().toLowerCase();
+  const list=$(listId);
+  if(!val){list.classList.remove('open');return;}
+  const vendors=getKnownVendors().filter(v=>v.toLowerCase().includes(val));
+  if(!vendors.length){list.classList.remove('open');return;}
+  acFocusIdx=-1;
+  list.innerHTML=vendors.slice(0,8).map((v,i)=>`
+    <div class="ac-item" data-idx="${i}" onmousedown="acPick('${inputId}','${listId}','${v.replace(/'/g,"\\'")}')">
+      <span class="ac-item-name">${v.replace(new RegExp(`(${val})`, 'gi'),'<strong>$1</strong>')}</span>
+    </div>`).join('');
+  list.classList.add('open');
+}
+
+function acPick(inputId, listId, value){
+  $(inputId).value=value;
+  $(listId).classList.remove('open');
+  acFocusIdx=-1;
+}
+
+function acBlur(listId){
+  // Delay so mousedown on item fires first
+  setTimeout(()=>$(listId).classList.remove('open'), 150);
+}
+
+function acKey(e, inputId, listId){
+  const list=$(listId);
+  const items=list.querySelectorAll('.ac-item');
+  if(!list.classList.contains('open')||!items.length) return;
+  if(e.key==='ArrowDown'){
+    e.preventDefault();
+    acFocusIdx=Math.min(acFocusIdx+1,items.length-1);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===acFocusIdx));
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault();
+    acFocusIdx=Math.max(acFocusIdx-1,0);
+    items.forEach((el,i)=>el.classList.toggle('focused',i===acFocusIdx));
+  } else if(e.key==='Enter' && acFocusIdx>=0){
+    e.preventDefault();
+    const focused=items[acFocusIdx];
+    if(focused) acPick(inputId, listId, focused.querySelector('.ac-item-name').textContent);
+  } else if(e.key==='Escape'){
+    list.classList.remove('open');
+  }
+}
+let editRecurId = null;
+
+function autoPostRecurring(){
+  if(!recurringExps.length) return;
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  const curMonth = todayStr.slice(0,7);
+  const todayDay = today.getDate();
+  let added = 0;
+
+  recurringExps.filter(r=>r.active!==false).forEach(r=>{
+    const postDay = Number(r.day||1);
+    if(todayDay < postDay) return; // Not yet due this month
+    // Check if already posted this month for this recurring rule
+    const alreadyPosted = bizExps.some(e=>e.recurId===r.id && e.date && e.date.startsWith(curMonth));
+    if(alreadyPosted) return;
+    // Post it
+    const paddedDay = String(postDay).padStart(2,'0');
+    bizExps.unshift({
+      id: uid(), recurId: r.id,
+      desc: r.desc, cat: r.cat,
+      amount: r.amount, date: `${curMonth}-${paddedDay}`,
+      vendor: r.vendor||'', notes: r.notes||'',
+      auto: true
+    });
+    added++;
+  });
+  if(added>0){ save(); toast(`${added} recurring expense${added>1?'s':''} auto-posted for ${fmtMo(curMonth)} 🔁`,'info'); }
+}
+
+function openRecurringMgr(){
+  renderRecurringMgr();
+  openModal('mRecurringMgr');
+}
+
+function renderRecurringMgr(){
+  const body = $('recurringMgrBody');
+  if(!recurringExps.length){
+    body.innerHTML=`<div class="empty" style="padding:32px 20px">
+      <div class="empty-icon">🔁</div>
+      <div class="empty-title">No recurring expenses yet</div>
+      <div class="empty-sub">Click "+ New Recurring" to set one up — it will auto-post each month</div>
+    </div>`;
+    return;
+  }
+  body.innerHTML=`<table style="width:100%;border-collapse:collapse">
+    <thead><tr style="border-bottom:1px solid var(--border)">
+      <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Description</th>
+      <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Category</th>
+      <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Amount</th>
+      <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Posts On</th>
+      <th style="text-align:left;padding:8px 12px;font-size:11px;color:var(--text-3);font-weight:700;text-transform:uppercase;letter-spacing:.5px">Status</th>
+      <th></th>
+    </tr></thead>
+    <tbody>
+      ${recurringExps.map(r=>`
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:11px 12px"><strong>${esc(r.desc)}</strong>${r.vendor?`<div style="font-size:11px;color:var(--text-3)">${esc(r.vendor)}</div>`:''}</td>
+          <td style="padding:11px 12px"><span class="badge" style="background:var(--purple-bg);color:var(--purple);font-size:10.5px">${esc(r.cat)}</span></td>
+          <td style="padding:11px 12px;font-family:'DM Mono',monospace;font-weight:700;color:var(--red)">${fmt(r.amount)}</td>
+          <td style="padding:11px 12px;font-size:13px;color:var(--text-2)">Day <strong>${r.day}</strong> each month</td>
+          <td style="padding:11px 12px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12.5px">
+              <input type="checkbox" ${r.active!==false?'checked':''} onchange="toggleRecurring('${r.id}',this.checked)" style="accent-color:var(--green);width:15px;height:15px">
+              <span style="color:${r.active!==false?'var(--green)':'var(--text-3)'}">${r.active!==false?'Active':'Paused'}</span>
+            </label>
+          </td>
+          <td style="padding:11px 12px">
+            <div style="display:flex;gap:4px">
+              <button class="btn btn-xs btn-ghost" onclick="closeModal('mRecurringMgr');openAddRecurring('${r.id}')">Edit</button>
+              <button class="btn btn-xs btn-ghost" onclick="delRecurring('${r.id}')" style="color:var(--red)">Del</button>
+            </div>
+          </td>
+        </tr>`).join('')}
+    </tbody>
+  </table>
+  <div style="padding:12px 12px 0;font-size:11.5px;color:var(--text-3)">💡 Recurring expenses auto-post on their scheduled day each month when you open the app.</div>`;
+}
+
+function openAddRecurring(id=null){
+  editRecurId=id;
+  $('recurModalTitle').textContent=id?'Edit Recurring Expense':'Add Recurring Expense';
+  if(id){
+    const r=recurringExps.find(x=>x.id===id);if(!r)return;
+    $('re_desc').value=r.desc||'';$('re_cat').value=r.cat||'Other';
+    $('re_amt').value=r.amount||'';$('re_day').value=r.day||1;
+    $('re_vendor').value=r.vendor||'';$('re_notes').value=r.notes||'';
+  } else {
+    ['re_desc','re_amt','re_vendor','re_notes'].forEach(i=>$(i).value='');
+    $('re_cat').value='Rent / Lease';$('re_day').value=1;
+  }
+  closeModal('mRecurringMgr');
+  openModal('mRecurring');
+}
+
+function saveRecurring(){
+  const desc=$('re_desc').value.trim();
+  const amt=posNum($('re_amt').value);
+  if(!desc){toast('Please enter a description','er');$('re_desc').focus();return;}
+  if(!amt||amt<=0){toast('Please enter a valid amount','er');$('re_amt').focus();return;}
+  const d={
+    id:editRecurId||uid(), desc, cat:$('re_cat').value,
+    amount:amt, day:Number($('re_day').value),
+    vendor:$('re_vendor').value.trim(), notes:$('re_notes').value.trim(),
+    active:true
+  };
+  if(editRecurId){
+    const idx=recurringExps.findIndex(r=>r.id===editRecurId);
+    recurringExps[idx]={...recurringExps[idx],...d};
+    toast('Recurring expense updated ✓');
+  } else {
+    recurringExps.push(d);
+    toast('Recurring expense saved ✓');
+  }
+  save();
+  closeModal('mRecurring');
+  openRecurringMgr();
+}
+
+function toggleRecurring(id, active){
+  const r=recurringExps.find(x=>x.id===id);if(!r)return;
+  r.active=active;save();
+  renderRecurringMgr();
+  toast(active?'Recurring expense activated':'Recurring expense paused','info');
+}
+
+function delRecurring(id){
+  const r=recurringExps.find(x=>x.id===id);if(!r)return;
+  customConfirm({
+    title:'Delete recurring?',
+    msg:`"${r.desc}" will stop auto-posting. Already posted entries are unaffected.`,
+    icon:'🔁',okLabel:'Delete',okClass:'btn-red',
+    onOk:async()=>{recurringExps=recurringExps.filter(x=>x.id!==id);await deleteFromCloud('recurring_exps',id);renderRecurringMgr();toast('Recurring expense deleted','info');}
+  });
+}
+
+// ── BUSINESS EXPENSES ──
+let editBizId = null;
+
+function bizExpMonths(){
+  const all=bizExps.map(e=>e.date.slice(0,7));
+  // Also include current month
+  const now=new Date().toISOString().slice(0,7);
+  if(!all.includes(now))all.push(now);
+  return[...new Set(all)].sort().reverse();
+}
+
+function openAddBizExp(id=null){
+  editBizId=id;
+  $('bizExpModalTitle').textContent=id?'Edit Expense':'Add Business Expense';
+  if(id){
+    const e=bizExps.find(x=>x.id===id);if(!e)return;
+    $('be_desc').value=e.desc||'';$('be_cat').value=e.cat||'Other';
+    $('be_amt').value=e.amount||'';$('be_date').value=e.date||'';
+    $('be_vendor').value=e.vendor||'';$('be_notes').value=e.notes||'';
+  } else {
+    ['be_desc','be_amt','be_vendor','be_notes'].forEach(i=>$(i).value='');
+    $('be_cat').value='Rent / Lease';
+    $('be_date').value=new Date().toISOString().slice(0,10);
+  }
+  openModal('mBizExp');
+}
+
+function saveBizExp(){
+  const desc=$('be_desc').value.trim();
+  const amt=posNum($('be_amt').value);
+  const date=$('be_date').value;
+  if(!desc){toast('Please enter a description','er');$('be_desc').focus();return;}
+  if(!amt||amt<=0){toast('Please enter a valid amount','er');$('be_amt').focus();return;}
+  if(!date){toast('Please select a date','er');$('be_date').focus();return;}
+  const d={
+    id:editBizId||uid(),desc,cat:$('be_cat').value,
+    amount:amt,date,vendor:$('be_vendor').value.trim(),
+    notes:$('be_notes').value.trim()
+  };
+  if(editBizId){
+    const idx=bizExps.findIndex(e=>e.id===editBizId);
+    bizExps[idx]=d;toast('Expense updated ✓');
+  } else {
+    bizExps.unshift(d);toast('Expense added ✓');
+  }
+  save();closeModal('mBizExp');renderBizExp();
+}
+
+function delBizExp(id){
+  const e=bizExps.find(x=>x.id===id);if(!e)return;
+  customConfirm({
+    title:'Delete expense?',msg:`"${e.desc}" — ${fmt(e.amount)} will be permanently removed.`,
+    icon:'🗑️',okLabel:'Delete',okClass:'btn-red',
+    onOk:async()=>{bizExps=bizExps.filter(x=>x.id!==id);await deleteFromCloud('biz_exps',id);renderBizExp();toast('Expense deleted','info');}
+  });
+}
+
+function renderBizExp(){
+  const months=bizExpMonths();
+  const sel=$('bizexpMonthSel');
+  const curVal=sel.value;
+  sel.innerHTML=months.map(m=>`<option value="${m}" ${m===curVal?'selected':''}>${fmtMo(m)}</option>`).join('');
+  const selMonth=sel.value||months[0]||new Date().toISOString().slice(0,7);
+
+  const list=bizExps.filter(e=>e.date&&e.date.startsWith(selMonth))
+    .sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const total=list.reduce((s,e)=>s+Number(e.amount||0),0);
+
+  // Group by category for summary
+  const byCat={};
+  list.forEach(e=>{byCat[e.cat]=(byCat[e.cat]||0)+Number(e.amount||0);});
+  const catEntries=Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+
+  $('bizexpSub').textContent=`${list.length} expense${list.length!==1?'s':''} · ${fmt(total)} total for ${fmtMo(selMonth)}`;
+
+  $('bizexpBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px">
+      <div class="stat-card" style="--stat-accent:var(--red)">
+        <div class="stat-icon" style="background:var(--red-bg)">💸</div>
+        <div class="stat-label">Total Expenses</div>
+        <div class="stat-value" style="color:var(--red)">${fmt(total)}</div>
+        <div class="stat-meta">${fmtMo(selMonth)}</div>
+      </div>
+      <div class="stat-card" style="--stat-accent:var(--gold)">
+        <div class="stat-icon" style="background:var(--gold-bg)">📋</div>
+        <div class="stat-label">Line Items</div>
+        <div class="stat-value">${list.length}</div>
+        <div class="stat-meta">this month</div>
+      </div>
+      <div class="stat-card" style="--stat-accent:var(--purple)">
+        <div class="stat-icon" style="background:var(--purple-bg)">📂</div>
+        <div class="stat-label">Categories</div>
+        <div class="stat-value">${catEntries.length}</div>
+        <div class="stat-meta">expense types</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px">
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Expenses — ${fmtMo(selMonth)}</div></div>
+          <button class="btn btn-dark btn-sm" onclick="openAddBizExp()">+ Add</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Description</th><th>Category</th><th>Vendor</th><th>Amount</th><th></th></tr></thead>
+            <tbody>
+              ${list.map(e=>`
+                <tr>
+                  <td style="color:var(--text-3);font-size:12px;white-space:nowrap">${e.date}</td>
+                  <td><strong>${esc(e.desc)}</strong>${e.auto?` <span style="font-size:9px;background:var(--blue-bg);color:var(--blue);border-radius:3px;padding:1px 5px;font-weight:700;vertical-align:middle">🔁 AUTO</span>`:''}${e.notes?`<div style="font-size:11px;color:var(--text-3);margin-top:2px">${esc(e.notes)}</div>`:''}</td>
+                  <td><span class="badge" style="background:var(--purple-bg);color:var(--purple);font-size:10.5px">${esc(e.cat)}</span></td>
+                  <td style="font-size:12.5px;color:var(--text-2)">${esc(e.vendor)||'—'}</td>
+                  <td><strong style="font-family:'DM Mono',monospace;color:var(--red)">${fmt(e.amount)}</strong></td>
+                  <td>
+                    <div style="display:flex;gap:4px">
+                      <button class="btn btn-xs btn-ghost" onclick="openAddBizExp('${e.id}')">Edit</button>
+                      <button class="btn btn-xs btn-ghost" onclick="delBizExp('${e.id}')" style="color:var(--red)">Del</button>
+                    </div>
+                  </td>
+                </tr>`).join('')||`<tr><td colspan="6"><div class="empty" style="padding:32px 20px">
+                  <div class="empty-icon">💸</div>
+                  <div class="empty-title">No expenses for ${fmtMo(selMonth)}</div>
+                  <div class="empty-sub">Click "+ Add" to record your first expense</div>
+                </div></td></tr>`}
+            </tbody>
+            ${list.length?`<tfoot><tr style="background:#fafaf9;font-weight:700">
+              <td colspan="4" style="padding:11px 16px;font-size:13px;border-top:1px solid var(--border)">Total</td>
+              <td style="padding:11px 16px;font-family:'DM Mono',monospace;font-size:13px;border-top:1px solid var(--border);color:var(--red)">${fmt(total)}</td>
+              <td style="border-top:1px solid var(--border)"></td>
+            </tr></tfoot>`:''}
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">By Category</div></div>
+        <div style="padding:6px 8px">
+          ${catEntries.length?catEntries.map(([cat,amt])=>`
+            <div class="cost-row">
+              <span class="cost-label" style="flex-direction:column;align-items:flex-start;gap:2px">
+                <span style="font-size:12.5px">${esc(cat)}</span>
+                <span style="font-size:10px;color:var(--text-3)">${((amt/total)*100).toFixed(1)}%</span>
+              </span>
+              <span class="cost-amount" style="color:var(--red)">${fmt(amt)}</span>
+            </div>`).join('')+`<div class="cost-row total-row"><span class="cost-label">Total</span><span class="cost-amount" style="color:var(--red)">${fmt(total)}</span></div>`
+          :'<div style="padding:20px;text-align:center;color:var(--text-3);font-size:13px">No data yet</div>'}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── PHOTO MANAGEMENT ──
+let pendingPhotos = []; // base64 strings for current edit session
+let lbPhotos = [], lbIndex = 0;
+
+function photoDrag(e, on){
+  e.preventDefault();
+  $('photoZone').classList.toggle('dragover', on);
+}
+function photoDrop(e){
+  e.preventDefault();
+  $('photoZone').classList.remove('dragover');
+  photoAdd(e.dataTransfer.files);
+}
+function photoAdd(files){
+  const MAX=10;
+  const remaining=MAX-pendingPhotos.length;
+  if(remaining<=0){toast('Maximum 10 photos per vehicle','er');return;}
+  const toProcess=[...files].slice(0,remaining);
+  let loaded=0;
+  toProcess.forEach(file=>{
+    if(!file.type.startsWith('image/')){toast(`${file.name} is not an image`,'er');return;}
+    if(file.size>5*1024*1024){toast(`${file.name} exceeds 5MB limit`,'er');return;}
+    const reader=new FileReader();
+    reader.onload=e=>{
+      pendingPhotos.push(e.target.result);
+      loaded++;
+      if(loaded===toProcess.length)renderPhotoThumbs();
+    };
+    reader.readAsDataURL(file);
+  });
+  // Reset input so same file can be re-added
+  $('photoInput').value='';
+}
+function renderPhotoThumbs(){
+  $('photoThumbs').innerHTML=pendingPhotos.map((src,i)=>`
+    <div class="photo-thumb ${i===0?'primary':''}" onclick="openLightboxArr(pendingPhotos,${i})">
+      <img src="${src}" alt="Photo ${i+1}">
+      <button class="photo-thumb-del" onclick="event.stopPropagation();delPhoto(${i})" title="Remove">✕</button>
+    </div>`).join('');
+  // Show count hint
+  if(pendingPhotos.length>0){
+    $('photoZone').querySelector('.photo-upload-label').textContent=`${pendingPhotos.length}/10 photos added — click to add more`;
+  } else {
+    $('photoZone').querySelector('.photo-upload-label').textContent='Click to upload or drag & drop';
+  }
+}
+function delPhoto(i){
+  pendingPhotos.splice(i,1);
+  renderPhotoThumbs();
+}
+
+// ── LIGHTBOX ──
+function openLightboxArr(photos, startIndex){
+  lbPhotos=photos; lbIndex=startIndex;
+  lbRender();
+  $('lightbox').classList.add('open');
+}
+function lbRender(){
+  $('lbImg').src=lbPhotos[lbIndex];
+  $('lbCounter').textContent=`${lbIndex+1} / ${lbPhotos.length}`;
+  $('lightbox').querySelector('.lightbox-nav').style.display=lbPhotos.length>1?'flex':'none';
+}
+function lbNav(dir){
+  lbIndex=(lbIndex+dir+lbPhotos.length)%lbPhotos.length;
+  lbRender();
+}
+function lbClose(e){if(e.target===$('lightbox'))closeLightbox();}
+function closeLightbox(){$('lightbox').classList.remove('open');lbPhotos=[];lbIndex=0;}
+document.addEventListener('keydown',e=>{
+  if(!$('lightbox').classList.contains('open'))return;
+  if(e.key==='ArrowLeft')lbNav(-1);
+  if(e.key==='ArrowRight')lbNav(1);
+  if(e.key==='Escape')closeLightbox();
+});
+function exportCSV(){
+  const rows=[['Stock #','Year','Make','Model','VIN','Color','Mileage','Source','Source Name','Purchase Date','Purchase Price','Expenses','All-In Cost','Status','Sale Price','Profit/Loss','Buyer','Deal Type','Date Sold']];
+  cars.forEach(c=>{
+    rows.push([
+      c.stock||'',c.year||'',c.make||'',c.model||'',c.vin||'',
+      c.color||'',c.mileage||'',c.source||'',c.sourceName||'',
+      c.purchaseDate||'',c.price||0,expTotal(c),allIn(c),
+      c.status||'',c.salePrice||'',c.status==='Sold'?profit(c):'',
+      c.buyer||'',c.dealType||'',c.soldDate||''
+    ]);
+  });
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`Orion-One-Export-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+  toast('CSV exported successfully');
+}
+
+function renderDash(){
+  const act=cars.filter(c=>c.status!=='Sold'),sold=cars.filter(c=>c.status==='Sold');
+  const invVal=act.reduce((s,c)=>s+allIn(c),0);
+  const totSales=sold.reduce((s,c)=>s+Number(c.salePrice||0),0);
+  const netProfit=sold.reduce((s,c)=>s+profit(c),0);
+  // Avg days in stock for sold vehicles
+  const soldWithDates=sold.filter(c=>c.purchaseDate&&c.soldDate);
+  const avgDays=soldWithDates.length?Math.round(soldWithDates.reduce((s,c)=>{
+    const d=Math.max(0,Math.floor((new Date(c.soldDate)-new Date(c.purchaseDate))/86400000));
+    return s+d;
+  },0)/soldWithDates.length):null;
+
+  $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  $('onboardWrap').innerHTML=cars.length===0?`<div class="onboard" style="margin-bottom:18px">
+    <div class="onboard-left">
+      <div class="onboard-title">👋 Welcome to Orion One</div>
+      <div class="onboard-sub">Your wholesale management hub. Get started in two steps:</div>
+      <div class="onboard-step"><div class="onboard-step-num">1</div><div class="onboard-step-text"><strong>Add a vehicle</strong> — enter the VIN and it auto-fills Year, Make, Model & Stock #</div></div>
+      <div class="onboard-step"><div class="onboard-step-num">2</div><div class="onboard-step-text"><strong>Record a deal</strong> — when you sell, log the buyer info and sale price to track profit</div></div>
+    </div>
+    <div class="onboard-actions"><button class="btn btn-gold" onclick="openAddVehicle()">+ Add First Vehicle</button></div>
+  </div>`:'';
+
+  $('dashStats').innerHTML=`
+    <div class="stat-card" style="--stat-accent:var(--blue)"><div class="stat-icon" style="background:var(--blue-bg)">🚗</div><div class="stat-label">In Stock</div><div class="stat-value">${act.length}</div><div class="stat-meta">vehicles active</div></div>
+    <div class="stat-card" style="--stat-accent:var(--gold)"><div class="stat-icon" style="background:var(--gold-bg)">💼</div><div class="stat-label">Inventory Value</div><div class="stat-value">${fmtShort(invVal)}</div><div class="stat-meta">total all-in cost</div></div>
+    <div class="stat-card" style="--stat-accent:var(--green)"><div class="stat-icon" style="background:var(--green-bg)">💰</div><div class="stat-label">Total Revenue</div><div class="stat-value">${fmtShort(totSales)}</div><div class="stat-meta">${sold.length} vehicle${sold.length!==1?'s':''} sold</div></div>
+    <div class="stat-card" style="--stat-accent:${netProfit>=0?'var(--green)':'var(--red)'}"><div class="stat-icon" style="background:${netProfit>=0?'var(--green-bg)':'var(--red-bg)'}">📈</div><div class="stat-label">Net Profit</div><div class="stat-value" style="color:${netProfit>=0?'var(--green)':'var(--red)'}">${netProfit>=0?'+':''}${fmtShort(netProfit)}</div><div class="stat-meta">${avgDays!==null?`avg ${avgDays}d to sell`:'all time'}</div></div>`;
+
+  $('dashInv').innerHTML=act.slice(0,6).map(c=>`<tr class="clickable" onclick="openDP('${c.id}')"><td><strong>${esc(cname(c))}</strong></td><td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td><td><strong>${fmt(allIn(c))}</strong></td><td>${daysIn(c.purchaseDate,true)}</td></tr>`).join('')||`<tr><td colspan="4"><div class="empty"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles yet</div><div class="empty-sub">Add your first vehicle to get started</div><button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button></div></td></tr>`;
+
+  // Sort by most recent sale date
+  const recentSold=[...sold].sort((a,b)=>new Date(b.soldDate||0)-new Date(a.soldDate||0));
+  $('dashSold').innerHTML=recentSold.slice(0,6).map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openDP('${c.id}')"><td><strong>${esc(cname(c))}</strong></td><td style="font-size:12.5px">${esc(c.buyer)||'—'}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmtShort(pr)}</span></td></tr>`;}).join('')||`<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-3);font-size:13px">No deals recorded yet</td></tr>`;
+}
+
+function renderInventory(){
+  const q=($('invSearch')?.value||'').toLowerCase();
+  const f=$('invFilter')?.value||'';
+  let list=cars.filter(c=>c.status!=='Sold');
+  if(f)list=list.filter(c=>c.source===f);
+  if(q)list=list.filter(c=>[c.vin,c.make,c.model,c.stock,c.color,c.sourceName].join(' ').toLowerCase().includes(q));
+  $('invSub').textContent=`${list.length} vehicle${list.length!==1?'s':''} in stock`;
+  $('invGrid').innerHTML=list.map(c=>`
+    <div class="vcard" onclick="openDP('${c.id}')">
+      ${c.photos&&c.photos.length?`<img class="vcard-photo" src="${c.photos[0]}" alt="${esc(cname(c))}" onclick="event.stopPropagation();openLightboxArr(${JSON.stringify(c.photos).replace(/"/g,'&quot;')},0)">`:`<div class="vcard-no-photo">🚗</div>`}
+      <div class="vcard-top"><span class="vcard-stock">${esc(c.stock)||'—'}</span><span class="badge ${c.source==='Auction'?'b-auction':'b-dealer'}">${esc(c.source)}</span></div>
+      <div class="vcard-name">${cname(c)}</div>
+      <div class="vcard-vin">${c.vin||'No VIN'}${c.color?' · '+c.color:''}${c.mileage?' · '+Number(c.mileage).toLocaleString()+' mi':''}</div>
+      <div class="vcard-grid">
+        <div class="vcard-item"><label>Purchase</label><span>${fmt(c.price)}</span></div>
+        <div class="vcard-item"><label>Expenses</label><span>${fmt(expTotal(c))}</span></div>
+        <div class="vcard-item"><label>All-In Cost</label><span class="gold">${fmt(allIn(c))}</span></div>
+        <div class="vcard-item"><label>Days In</label><span>${daysIn(c.purchaseDate,true)}</span></div>
+      </div>
+      <div class="vcard-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-sm" onclick="openDP('${c.id}')">View Details</button>
+        <button class="btn btn-green btn-sm" onclick="openDeal('${c.id}')">Record Sale</button>
+      </div>
+    </div>`).join('')||`<div style="grid-column:1/-1"><div class="card"><div class="empty">
+      <div class="empty-icon">🚗</div>
+      <div class="empty-title">${q||f?'No matching vehicles':'No vehicles in inventory'}</div>
+      <div class="empty-sub">${q||f?'Try adjusting your search or filter':'Add your first vehicle to get started'}</div>
+      ${!q&&!f?'<button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>':''}
+    </div></div></div>`;
+}
+
+function renderSold(){
+  const q=($('soldSearch')?.value||'').toLowerCase();
+  let list=cars.filter(c=>c.status==='Sold');
+  // Sort by most recent sale date first
+  list=[...list].sort((a,b)=>new Date(b.soldDate||0)-new Date(a.soldDate||0));
+  if(q)list=list.filter(c=>[c.make,c.model,c.buyer,c.stock,c.vin].join(' ').toLowerCase().includes(q));
+  $('soldSub').textContent=`${list.length} completed deal${list.length!==1?'s':''}`;
+  $('soldBody').innerHTML=list.map(c=>{const pr=profit(c);return`
+    <tr class="clickable" onclick="openDP('${c.id}')">
+      <td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td>
+      <td><strong>${esc(cname(c))}</strong></td><td>${esc(c.buyer)||'—'}</td>
+      <td><span class="badge" style="background:var(--purple-bg);color:var(--purple)">${esc(c.dealType)||'Wholesale'}</span></td>
+      <td>${fmt(allIn(c))}</td><td><strong>${fmt(c.salePrice)}</strong></td>
+      <td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span><span style="font-size:10px;color:var(--text-3);margin-left:4px">${c.salePrice?((pr/Number(c.salePrice||1))*100).toFixed(1)+'%':''}</span></td>
+      <td style="color:var(--text-3);font-size:12px">${esc(c.soldDate)||'—'}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="delCar('${c.id}')" style="color:var(--red)">Del</button></td>
+    </tr>`;}).join('')||`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No deals yet</div><div class="empty-sub">Record your first sale using the "Record Deal" button</div></div></td></tr>`;
+}
+
+function renderPL(){
+  const sold=cars.filter(c=>c.status==='Sold'&&c.soldDate);
+  const months=[...new Set(sold.map(c=>c.soldDate.slice(0,7)))].sort().reverse();
+  if(!months.length){
+    $('monthPills').innerHTML='';
+    $('plContent').innerHTML=`<div class="card"><div class="empty"><div class="empty-icon">📊</div><div class="empty-title">No data yet</div><div class="empty-sub">Record deals to see monthly P&L reports</div></div></div>`;
+    return;
+  }
+  if(!plMonth||!months.includes(plMonth))plMonth=months[0];
+  $('monthPills').innerHTML=months.map(m=>`<button class="mpill ${m===plMonth?'active':''}" onclick="plMonth='${m}';renderPL()">${fmtMo(m)}</button>`).join('');
+  const ms=sold.filter(c=>c.soldDate.startsWith(plMonth));
+  const rev=ms.reduce((s,c)=>s+Number(c.salePrice||0),0);
+  const costs=ms.reduce((s,c)=>s+allIn(c),0);
+  const net=rev-costs;
+  const byCat={};
+  ms.forEach(c=>(c.expenses||[]).forEach(e=>{byCat[e.category]=(byCat[e.category]||0)+Number(e.amount||0);}));
+  $('plContent').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px">
+      <div class="card"><div class="pl-hero"><div class="pl-hero-label">Revenue</div><div class="pl-hero-val" style="color:var(--blue)">${fmt(rev)}</div><div class="pl-hero-sub">${ms.length} vehicle${ms.length!==1?'s':''} sold</div></div></div>
+      <div class="card"><div class="pl-hero"><div class="pl-hero-label">Total Costs</div><div class="pl-hero-val" style="color:var(--text-2)">${fmt(costs)}</div><div class="pl-hero-sub">purchase + expenses</div></div></div>
+      <div class="card"><div class="pl-hero"><div class="pl-hero-label">Net ${net>=0?'Profit':'Loss'}</div><div class="pl-hero-val ${net>=0?'pos':'neg'}">${net>=0?'+':''}${fmt(net)}</div><div class="pl-hero-sub">${net>=0?'Keep it up 🎉':'Review expenses'}</div></div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
+      <div class="card"><div class="card-head"><div class="card-title">Revenue Breakdown</div></div><div style="padding:6px 8px">
+        ${ms.map(c=>`<div class="cost-row clickable" onclick="openDP('${c.id}')"><span class="cost-label">${cname(c)} <span style="color:var(--text-3);font-size:11px">(${c.stock||''})</span></span><span class="cost-amount">${fmt(c.salePrice)}</span></div>`).join('')}
+        <div class="cost-row total-row"><span class="cost-label">Total Revenue</span><span class="cost-amount" style="color:var(--green)">${fmt(rev)}</span></div>
+      </div></div>
+      <div class="card"><div class="card-head"><div class="card-title">Expense Breakdown</div></div><div style="padding:6px 8px">
+        <div class="cost-row"><span class="cost-label">Purchase Prices</span><span class="cost-amount">${fmt(ms.reduce((s,c)=>s+Number(c.price||0),0))}</span></div>
+        ${Object.entries(byCat).map(([k,v])=>`<div class="cost-row"><span class="cost-label">${k}</span><span class="cost-amount">${fmt(v)}</span></div>`).join('')}
+        <div class="cost-row total-row"><span class="cost-label">Total Costs</span><span class="cost-amount" style="color:var(--red)">${fmt(costs)}</span></div>
+      </div></div>
+    </div>
+    <div class="card"><div class="card-head"><div class="card-title">Vehicles Sold — ${fmtMo(plMonth)}</div></div>
+      <div class="tbl-wrap"><table><thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th></tr></thead>
+      <tbody>${ms.map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openDP('${c.id}')"><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.stock||'—'}</td><td><strong>${cname(c)}</strong></td><td>${c.buyer||'—'}</td><td>${fmt(allIn(c))}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span></td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-3)">No sales this month</td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+}
+
+function fmtMo(m){const[y,mo]=m.split('-');return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+' '+y;}
+
+const WMI={'1G1':'Chevrolet','1G4':'Buick','1G6':'Cadillac','1GC':'Chevrolet','1GT':'GMC','1GN':'Chevrolet','2G1':'Chevrolet','1FA':'Ford','1FB':'Ford','1FD':'Ford','1FM':'Ford','1FT':'Ford','1LN':'Lincoln','2FA':'Ford','2FM':'Ford','3FA':'Ford','3FM':'Ford','1HG':'Honda','2HG':'Honda','2HK':'Honda','5FN':'Honda','5FR':'Acura','5J6':'Honda','JHM':'Honda','JH4':'Acura','19U':'Acura','19X':'Honda','2T1':'Toyota','2T2':'Lexus','4T1':'Toyota','4T3':'Toyota','4T4':'Toyota','5TD':'Toyota','5TF':'Toyota','5TG':'Toyota','5TJ':'Toyota','JTD':'Toyota','JTE':'Toyota','JTJ':'Lexus','JTN':'Toyota','JT6':'Lexus','JT8':'Lexus','1N4':'Nissan','1N6':'Nissan','3N1':'Nissan','5N1':'Nissan','JN1':'Nissan','JN8':'Nissan','JNK':'Infiniti','1J4':'Jeep','1J8':'Jeep','1C4':'Chrysler','1C6':'Ram','2B3':'Dodge','2C3':'Chrysler','2C4':'Chrysler','3C6':'Ram','1D7':'Ram','5NM':'Hyundai','5NP':'Hyundai','5XY':'Kia','KM8':'Hyundai','KNA':'Kia','KND':'Kia','KMH':'Hyundai','4S3':'Subaru','4S4':'Subaru','JF1':'Subaru','JF2':'Subaru','JM1':'Mazda','JM3':'Mazda','5YJ':'Tesla','5YF':'Tesla','7SA':'Tesla','3VW':'Volkswagen','WVW':'Volkswagen','WAU':'Audi','WA1':'Audi','WBS':'BMW','WBA':'BMW','WBY':'BMW','WP0':'Porsche','WP1':'Porsche','WDD':'Mercedes-Benz','WDC':'Mercedes-Benz','W1K':'Mercedes-Benz','YV1':'Volvo','YV4':'Volvo','SAJ':'Jaguar','SAL':'Land Rover','JA3':'Mitsubishi','JA4':'Mitsubishi','5UX':'BMW','5LM':'Lincoln'};
+const MDL={'1HG':{'C':'Accord','B':'Civic','R':'CR-V','Y':'Fit','D':'HR-V','S':'Pilot','L':'Odyssey','V':'Ridgeline','P':'Passport'},'2HK':{'C':'CR-V','R':'Pilot','M':'HR-V','B':'Odyssey','N':'Ridgeline'},'5FN':{'R':'Pilot','Y':'Ridgeline','B':'Odyssey'},'5FR':{'L':'MDX','R':'RDX'},'JH4':{'T':'TL','D':'Integra','B':'Legend'},'4T1':{'B':'Camry','G':'Avalon','F':'Camry','D':'Corolla','N':'Camry'},'2T1':{'B':'Corolla','G':'Matrix','K':'Corolla'},'5TD':{'Y':'Sienna','Z':'Highlander','K':'Sequoia','J':'4Runner','B':'Sienna','D':'Tacoma','F':'Tundra','G':'Highlander'},'5TF':{'C':'Tacoma','E':'Tundra','B':'Tacoma','Z':'Tundra'},'5TJ':{'B':'4Runner','M':'FJ Cruiser','N':'4Runner'},'JTE':{'B':'RAV4','D':'4Runner','G':'Land Cruiser','K':'RAV4','N':'Highlander'},'JTJ':{'B':'GX','Y':'LX','G':'RX','K':'NX','N':'UX'},'2T2':{'B':'RX','G':'GX','K':'NX','N':'RX','Z':'ES'},'1N4':{'A':'Altima','B':'Maxima','C':'Sentra','L':'Leaf','R':'Rogue','E':'Versa','G':'Murano','W':'Rogue'},'1N6':{'A':'Frontier','B':'Titan','D':'Armada'},'5N1':{'A':'Armada','C':'Pathfinder','E':'Murano','N':'Rogue','R':'Rogue','T':'Kicks'},'3N1':{'A':'Sentra','B':'Sentra','C':'Versa','F':'Kicks'},'JN1':{'A':'Murano','B':'350Z','G':'G35','T':'QX60','V':'QX80'},'JN8':{'A':'Armada','B':'Pathfinder','G':'QX60','Y':'QX80'},'1FA':{'F':'Mustang','E':'Mustang','G':'Mustang'},'1FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','E':'Escape','5':'Bronco','G':'Bronco Sport','L':'Maverick'},'1FT':{'B':'F-150','C':'F-150','F':'F-250','G':'F-350','N':'F-150','P':'F-150','A':'Ranger','7':'Maverick'},'1LN':{'L':'Navigator','J':'MKZ','N':'Corsair','Z':'Nautilus','W':'Aviator'},'1G1':{'F':'Camaro','G':'Corvette','T':'Impala','Z':'Cruze','Y':'Sonic'},'1G6':{'E':'Escalade','N':'CT4','P':'CT5','R':'ATS','T':'CT6'},'1GT':{'C':'Canyon','D':'Sierra','E':'Yukon','W':'Yukon'},'1GC':{'C':'Silverado','T':'Colorado','Z':'Colorado'},'1GN':{'B':'Equinox','C':'Traverse','D':'Suburban','E':'Tahoe','K':'Blazer','Y':'Suburban','Z':'Tahoe'},'1C4':{'G':'Grand Cherokee','J':'Wrangler','N':'Pacifica','P':'Compass','W':'Renegade','X':'Cherokee','Y':'Grand Cherokee'},'1C6':{'R':'Ram 1500','S':'Ram 1500'},'3C6':{'J':'Ram 1500','T':'Ram 2500','U':'Ram 3500'},'2B3':{'C':'Charger','K':'Challenger'},'2C3':{'C':'Charger','K':'Challenger'},'2C4':{'R':'Pacifica','G':'Grand Caravan','N':'Pacifica'},'5NM':{'S':'Santa Fe','T':'Tucson','F':'Palisade','K':'Ioniq 5','P':'Kona'},'5NP':{'D':'Sonata','E':'Elantra','B':'Sonata','X':'Elantra'},'5XY':{'K':'Sorento','P':'Sportage','T':'Telluride','U':'Soul','G':'EV6'},'KNA':{'F':'Optima','B':'Soul','C':'Forte','D':'K5'},'KND':{'J':'Sorento','M':'Sportage','T':'Sorento'},'4S4':{'B':'Outback','W':'Forester','X':'Legacy','G':'Crosstrek'},'JF1':{'B':'Legacy','G':'Impreza','S':'Forester','A':'WRX','Z':'BRZ','X':'Crosstrek'},'JM1':{'B':'Mazda3','C':'Mazda6','D':'CX-5','F':'CX-9','G':'MX-5 Miata','N':'CX-30'},'JM3':{'K':'CX-5','T':'CX-9','R':'CX-30'},'WBA':{'3':'3 Series','4':'4 Series','5':'5 Series','7':'7 Series','A':'3 Series','G':'5 Series'},'5UX':{'C':'X3','G':'X4','J':'X5','L':'X6','U':'X7','B':'X1','E':'X2'},'WBY':{'H':'i3','K':'i4','N':'iX'},'WDD':{'G':'C-Class','H':'E-Class','J':'S-Class','P':'GLC-Class','R':'GLE-Class','W':'GLS-Class'},'WDC':{'G':'GLC-Class','H':'GLE-Class','J':'GLS-Class'},'WAU':{'A':'A4','B':'A6','C':'A8','D':'A5','K':'Q3','L':'Q5','M':'Q7','N':'Q8','T':'A3'},'WA1':{'A':'Q7','B':'Q5','C':'Q3','D':'Q8','P':'e-tron'},'3VW':{'A':'Jetta','B':'Beetle','F':'Tiguan','G':'Atlas','K':'ID.4','L':'Taos'},'5YJ':{'3':'Model 3','S':'Model S','X':'Model X','Y':'Model Y'},'7SA':{'Y':'Model Y'},'YV1':{'B':'S60','G':'XC60','H':'XC90','V':'XC40'},'YV4':{'A':'XC60','D':'XC90','G':'XC40'},'WP0':{'B':'911','C':'Cayenne','D':'Panamera','E':'Macan','F':'Taycan','L':'Cayman'},'SAL':{'D':'Defender','G':'Range Rover','R':'Range Rover Sport','T':'Evoque','X':'Defender','Z':'Range Rover Sport'},'SAJ':{'D':'F-Type','F':'F-Pace','G':'E-Pace','H':'I-Pace','K':'XF'},'JA4':{'D':'Outlander','G':'Outlander Sport','J':'Outlander'}};
+
+function getYear(v){
+  const ch=v[9].toUpperCase();
+  const old={A:1980,B:1981,C:1982,D:1983,E:1984,F:1985,G:1986,H:1987,J:1988,K:1989,L:1990,M:1991,N:1992,P:1993,R:1994,S:1995,T:1996,V:1997,W:1998,X:1999,Y:2000,1:2001,2:2002,3:2003,4:2004,5:2005,6:2006,7:2007,8:2008,9:2009};
+  const nw={A:2010,B:2011,C:2012,D:2013,E:2014,F:2015,G:2016,H:2017,J:2018,K:2019,L:2020,M:2021,N:2022,P:2023,R:2024,S:2025,T:2026};
+  return nw[ch]||(nw[ch]&&old[ch]?nw[ch]:old[ch])||null;
+}
+
+function decodeVIN(vin){
+  const v=vin.toUpperCase();
+  const make=WMI[v.slice(0,3)]||WMI[v.slice(0,2)]||null;
+  const year=getYear(v);
+  const mm=MDL[v.slice(0,3)];
+  const model=mm?(mm[v[3]]||null):null;
+  return{make,model,year};
+}
+
+function onVin(inp){
+  const v=inp.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
+  inp.value=v;
+  const ctr=$('vinCtr'),pill=$('vinPill');
+  ctr.textContent=v.length+'/17';
+  ctr.style.color=v.length===17?'var(--green)':'var(--text-3)';
+  if(v.length<17){pill.className='vin-pill';return;}
+  const{make,model,year}=decodeVIN(v);
+  if(year)$('f_year').value=year;
+  if(make)$('f_make').value=make;
+  if(model)$('f_model').value=model;
+  if(!$('f_stock').value.trim())$('f_stock').value='OS'+v.slice(-6);
+  if(make&&model){pill.className='vin-pill ok';pill.innerHTML=`✅ <strong>${year||''} ${make} ${model}</strong> — verify details below`;}
+  else if(make){pill.className='vin-pill warn';pill.innerHTML=`⚡ <strong>${year||''} ${make}</strong> — enter Model manually`;}
+  else{pill.className='vin-pill err';pill.innerHTML=`❌ VIN not recognized — fill in details below`;}
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')return;
+  if(e.key==='Escape'){
+    if($('confirmOverlay').style.display!=='none'){$('confirmOverlay').style.display='none';return;}
+    const modals=['mVehicle','mDeal'];
+    for(const m of modals){if($(m)?.classList.contains('open')){closeModal(m);return;}}
+    if($('dp').classList.contains('open')){closeDP();return;}
+  }
+  if(e.key==='n'&&!e.ctrlKey&&!e.metaKey)openAddVehicle();
+  if(e.key==='d'&&!e.ctrlKey&&!e.metaKey)openDeal();
+  if(e.key==='/'&&!e.ctrlKey&&!e.metaKey){
+    e.preventDefault();
+    const si=$('invSearch');
+    if(si){nav('inventory',$('nb-inventory'));setTimeout(()=>si.focus(),50);}
+  }
+});
+
+// App boots via _supa.auth.onAuthStateChange above
+// Global error handler
+window.addEventListener('unhandledrejection',e=>{console.error(e.reason);});
+
+</script>
+</body>
+</html>
