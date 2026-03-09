@@ -2,7 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orion One">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#18181b">
 <title>Orion One — Wholesale Management</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -402,6 +407,102 @@ tbody tr.clickable:hover td{background:#fafaf9}
   .v-grid{grid-template-columns:1fr}
   .dp{width:100%}
 }
+
+/* ── MOBILE / iPhone ── */
+@media(max-width:600px){
+  /* Hide desktop sidebar completely */
+  .sidebar{display:none}
+  
+  /* Full width main */
+  .main{width:100%;height:100vh;height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+  
+  /* Mobile header */
+  .page{display:none;flex-direction:column;height:100%;overflow:hidden}
+  .page.active{display:flex}
+  .page-header{padding:12px 16px 10px;padding-top:calc(12px + env(safe-area-inset-top));flex-shrink:0;border-bottom:1px solid var(--border);background:var(--surface)}
+  .ph-title{font-size:20px;font-weight:800;letter-spacing:-.5px}
+  .ph-sub{font-size:12px;color:var(--text-3);margin-top:1px}
+  .ph-actions{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+  .ph-actions .btn{font-size:12px;padding:7px 12px}
+  .ph-actions .toolbar{flex:1}
+  .ph-actions .search-box input{width:100%}
+
+  /* Scrollable page body */
+  .page-body{flex:1;overflow-y:auto;padding:12px 14px;padding-bottom:calc(80px + env(safe-area-inset-bottom))}
+
+  /* Stats grid — 2 col on mobile */
+  .stats-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .stat-card{padding:12px}
+  .stat-value{font-size:18px}
+  .stat-icon{width:30px;height:30px;font-size:14px}
+
+  /* Dashboard tables side by side → stacked */
+  #pg-dashboard .page-body > div:last-child{grid-template-columns:1fr!important;gap:12px}
+
+  /* Inventory grid */
+  .v-grid{grid-template-columns:1fr}
+
+  /* Cards */
+  .card{border-radius:10px}
+  .card-head{padding:12px 14px 10px}
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+  /* Detail panel full screen */
+  .dp{width:100%;border-left:none;border-top:1px solid var(--border)}
+  .dp-overlay{display:none!important}
+
+  /* Modals full screen on mobile */
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal{border-radius:20px 20px 0 0;max-width:100%;max-height:92vh;overflow-y:auto}
+  .modal-lg{max-width:100%}
+  .modal-head{padding:20px 18px 0}
+  .modal-body{padding:16px 18px}
+  .modal-foot{padding:14px 18px calc(14px + env(safe-area-inset-bottom));position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--border)}
+
+  /* Deal modal two-col → single col */
+  .modal-body > div[style*="grid-template-columns:1fr 1fr"]{display:block!important}
+  .modal-body > div[style*="grid-template-columns:1fr 1fr"] > .fs{margin-bottom:16px}
+  .frow{grid-template-columns:1fr!important;gap:10px}
+  .frow.cols3{grid-template-columns:1fr 1fr!important}
+
+  /* Auth screen */
+  .auth-box{border-radius:20px 20px 0 0;padding:28px 20px calc(28px + env(safe-area-inset-bottom));max-width:100%}
+  #authScreen{align-items:flex-end}
+
+  /* Bottom tab bar */
+  .mob-tabs{position:fixed;bottom:0;left:0;right:0;height:calc(62px + env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-around;padding-top:8px;padding-bottom:env(safe-area-inset-bottom);z-index:200;box-shadow:0 -4px 20px rgba(0,0,0,.08)}
+  .mob-tab{display:flex;flex-direction:column;align-items:center;gap:3px;padding:0 10px;cursor:pointer;transition:all .15s;min-width:52px;background:none;border:none;font-family:'DM Sans',sans-serif}
+  .mob-tab svg{width:22px;height:22px;stroke:var(--text-3);transition:stroke .15s}
+  .mob-tab span{font-size:10px;font-weight:600;color:var(--text-3);transition:color .15s}
+  .mob-tab.active svg{stroke:var(--gold)}
+  .mob-tab.active span{color:var(--gold)}
+  .mob-tab-add{width:44px;height:44px;background:var(--accent);border-radius:50%;display:grid;place-items:center;margin-top:-18px;box-shadow:0 4px 16px rgba(0,0,0,.25);border:none;cursor:pointer;transition:transform .15s}
+  .mob-tab-add:active{transform:scale(.93)}
+  .mob-tab-add svg{stroke:#fff;width:22px;height:22px}
+
+  /* Mobile floating action area */
+  .mob-fab-row{display:none}
+
+  /* Hide desktop-only elements */
+  .sidebar-bottom,.user-pill{display:none}
+
+  /* P&L hero 3-col → 1 col */
+  #plContent > div:first-child{grid-template-columns:1fr!important}
+  #plContent > div:nth-child(2){grid-template-columns:1fr!important}
+
+  /* Biz exp stats */
+  #bizexpBody > div:first-child{grid-template-columns:1fr 1fr!important}
+
+  /* Sold page table — hide less important cols */
+  .sold-hide{display:none}
+
+  /* Month pills scroll */
+  .month-pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .month-pills::-webkit-scrollbar{display:none}
+
+  /* VIN field scan btn */
+  .vin-scan-btn{right:42px}
+}
 </style>
 </head>
 <body>
@@ -541,6 +642,60 @@ tbody tr.clickable:hover td{background:#fafaf9}
     <div class="page-body" id="bizexpBody"></div>
   </div>
 </main>
+
+<!-- ── MOBILE BOTTOM TAB BAR ── -->
+<nav class="mob-tabs" id="mobTabs">
+  <button class="mob-tab active" id="mt-dashboard" onclick="nav('dashboard',this);mobTabActive(this)">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+    <span>Home</span>
+  </button>
+  <button class="mob-tab" id="mt-inventory" onclick="nav('inventory',this);mobTabActive(this)">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+    <span>Inventory</span>
+  </button>
+  <button class="mob-tab-add" onclick="openAddVehicle()" title="Add Vehicle">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+  </button>
+  <button class="mob-tab" id="mt-sold" onclick="nav('sold',this);mobTabActive(this)">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    <span>Sold</span>
+  </button>
+  <button class="mob-tab" id="mt-more" onclick="openMobMore()">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    <span>More</span>
+  </button>
+</nav>
+
+<!-- Mobile "More" sheet -->
+<div class="modal-overlay" id="mMobMore">
+  <div class="modal" style="border-radius:20px 20px 0 0">
+    <div class="modal-head">
+      <div><div class="modal-title">Menu</div></div>
+      <button class="close-btn" onclick="closeModal('mMobMore')">✕</button>
+    </div>
+    <div class="modal-body" style="padding-bottom:calc(20px + env(safe-area-inset-bottom))">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');nav('pl',$('nb-pl'));mobTabActive(null)">
+          📊 <span>P&amp;L Report</span>
+        </button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');nav('bizexp',$('nb-bizexp'));mobTabActive(null)">
+          💸 <span>Business Expenses</span>
+        </button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');openDeal()">
+          🤝 <span>Record Deal</span>
+        </button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');exportCSV()">
+          ⬇ <span>Export CSV</span>
+        </button>
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px;color:var(--red)" onclick="closeModal('mMobMore');signOut()">
+          👋 <span>Sign Out</span>
+        </button>
+        <div style="text-align:center;font-size:11px;color:var(--text-3);padding-top:4px" id="mobUserEmail"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════ BUSINESS EXPENSE MODAL ══════════ -->
 <div class="modal-overlay" id="mBizExp">
@@ -933,6 +1088,7 @@ _supa.auth.onAuthStateChange(async (event, session) => {
     const initials = currentUser.email.slice(0,2).toUpperCase();
     $('userAvatar').textContent = initials;
     $('userEmail').textContent = currentUser.email;
+    if($('mobUserEmail')) $('mobUserEmail').textContent = currentUser.email;
     // Load data then boot app
     await loadData();
     autoPostRecurring();
@@ -942,7 +1098,12 @@ _supa.auth.onAuthStateChange(async (event, session) => {
   }
 });
 
-// ── KEYBOARD shortcut for auth form ──
+// ── MOBILE HELPERS ──
+function mobTabActive(el){
+  document.querySelectorAll('.mob-tab').forEach(t=>t.classList.remove('active'));
+  if(el&&el.classList.contains('mob-tab'))el.classList.add('active');
+}
+function openMobMore(){ openModal('mMobMore'); }
 document.addEventListener('keydown', e=>{
   if($('authScreen').style.display!=='none' && e.key==='Enter') authSubmit();
 });
