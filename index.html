@@ -11,7 +11,6 @@
 <title>Orion One — Wholesale Management</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
 <style>
 :root {
   --bg: #f4f3ef;
@@ -380,19 +379,23 @@ tbody tr.clickable:hover td{background:#fafaf9}
 .ac-item-hint{font-size:11px;color:var(--text-3)}
 
 /* ── VIN SCANNER ── */
-#vinScanOverlay{position:fixed;inset:0;background:#000;z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center}
-#vinScanOverlay.open{display:flex}
-#vinVideo{width:100%;max-width:500px;border-radius:12px;display:block}
-.scan-frame{position:relative;width:100%;max-width:500px}
-.scan-reticle{position:absolute;left:10%;right:10%;top:35%;bottom:35%;border:2.5px solid var(--gold);border-radius:8px;box-shadow:0 0 0 9999px rgba(0,0,0,.55)}
-.scan-reticle::before{content:'';position:absolute;top:50%;left:0;right:0;height:2px;background:var(--gold);opacity:.7;animation:scanLine 1.8s ease-in-out infinite}
-@keyframes scanLine{0%,100%{top:10%}50%{top:88%}}
-.scan-label{color:rgba(255,255,255,.7);font-size:13px;margin-top:14px;text-align:center;padding:0 20px}
-.scan-close{margin-top:18px;padding:12px 32px;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.2);border-radius:8px;color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif}
-.scan-close:hover{background:rgba(255,255,255,.2)}
-.scan-manual{margin-top:10px;font-size:12px;color:rgba(255,255,255,.35);text-align:center}
 .vin-scan-btn{position:absolute;right:38px;top:50%;transform:translateY(-50%);background:var(--gold);border:none;border-radius:5px;padding:4px 8px;font-size:14px;cursor:pointer;line-height:1;transition:opacity .15s}
 .vin-scan-btn:hover{opacity:.85}
+#vinScanOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+#vinScanOverlay.open{display:flex;animation:fadeI .2s}
+.vin-scan-box{background:#1f1f23;border-radius:20px;padding:28px 24px;width:100%;max-width:400px;text-align:center}
+.vin-scan-icon{font-size:48px;margin-bottom:12px}
+.vin-scan-title{font-size:18px;font-weight:800;color:#fff;margin-bottom:6px}
+.vin-scan-sub{font-size:13px;color:rgba(255,255,255,.45);margin-bottom:24px;line-height:1.5}
+.vin-scan-preview{width:100%;border-radius:10px;margin-bottom:16px;display:none;max-height:200px;object-fit:cover}
+.vin-scan-preview.show{display:block}
+.vin-scan-status{background:rgba(255,255,255,.06);border-radius:8px;padding:12px;font-size:13px;color:rgba(255,255,255,.6);margin-bottom:16px;display:none;min-height:44px;align-items:center;justify-content:center;gap:8px}
+.vin-scan-status.show{display:flex}
+.vin-scan-result{background:rgba(22,163,74,.15);border:1px solid rgba(22,163,74,.3);border-radius:8px;padding:12px;font-size:14px;font-weight:700;color:#86efac;font-family:'DM Mono',monospace;margin-bottom:16px;letter-spacing:1px;display:none;word-break:break-all}
+.vin-scan-result.show{display:block}
+.vin-scan-actions{display:flex;flex-direction:column;gap:10px}
+.vin-scan-err{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#fca5a5;margin-bottom:12px;display:none}
+.vin-scan-err.show{display:block}
 
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -953,13 +956,21 @@ tbody tr.clickable:hover td{background:#fafaf9}
 </div>
 
 <div id="vinScanOverlay">
-  <div class="scan-frame">
-    <video id="vinVideo" autoplay playsinline muted></video>
-    <div class="scan-reticle"></div>
+  <div class="vin-scan-box">
+    <div class="vin-scan-icon">📷</div>
+    <div class="vin-scan-title">Scan VIN</div>
+    <div class="vin-scan-sub">Take a photo of the VIN barcode or sticker — found on the driver's door jamb or dashboard</div>
+    <img id="vinPreviewImg" class="vin-scan-preview" alt="VIN photo">
+    <div class="vin-scan-err" id="vinScanErr"></div>
+    <div class="vin-scan-status" id="vinScanStatus">🔍 Reading VIN from photo...</div>
+    <div class="vin-scan-result" id="vinScanResult"></div>
+    <div class="vin-scan-actions">
+      <input type="file" id="vinPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="processVinPhoto(this)">
+      <button class="btn btn-gold" style="width:100%;justify-content:center;padding:13px;font-size:15px" onclick="$('vinPhotoInput').click()">📷 Take Photo / Choose Image</button>
+      <button class="btn btn-ghost" id="vinUseBtn" style="width:100%;justify-content:center;display:none" onclick="useScannedVin()">✓ Use This VIN</button>
+      <button class="btn btn-ghost" style="width:100%;justify-content:center;color:rgba(255,255,255,.4);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)" onclick="closeVinScanner()">Cancel</button>
+    </div>
   </div>
-  <div class="scan-label">Point camera at the VIN barcode on the driver's door jamb sticker</div>
-  <button class="scan-close" onclick="closeVinScanner()">✕ Close Scanner</button>
-  <div class="scan-manual">Or type the VIN manually in the field</div>
 </div>
 
 <div id="syncBar"></div>
@@ -1466,60 +1477,105 @@ function renderAll(){
 function updateBadge(){$('invBadge').textContent=cars.filter(c=>c.status!=='Sold').length;}
 
 // ── VIN SCANNER ──
-let vinScanner = null, vinStream = null;
+// ── VIN SCANNER (Photo + AI Vision) ──
+let scannedVin = null;
 
-async function openVinScanner(){
-  const overlay = $('vinScanOverlay');
-  overlay.classList.add('open');
-  try {
-    // Request camera — prefer rear camera on mobile
-    vinStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
-    const video = $('vinVideo');
-    video.srcObject = vinStream;
-    await video.play();
-
-    // Init ZXing scanner
-    const hints = new Map();
-    const formats = [
-      ZXing.BarcodeFormat.CODE_39,
-      ZXing.BarcodeFormat.CODE_128,
-      ZXing.BarcodeFormat.DATA_MATRIX,
-      ZXing.BarcodeFormat.QR_CODE
-    ];
-    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, formats);
-    vinScanner = new ZXing.BrowserMultiFormatReader(hints);
-
-    vinScanner.decodeFromVideoElementContinuously(video, (result, err) => {
-      if(result){
-        const text = result.getText().replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
-        // VINs are exactly 17 chars
-        if(text.length === 17){
-          closeVinScanner();
-          $('f_vin').value = text;
-          onVin($('f_vin'));
-          toast('VIN scanned successfully ✓');
-        }
-      }
-    });
-  } catch(e){
-    closeVinScanner();
-    if(e.name === 'NotAllowedError'){
-      toast('Camera permission denied — please allow camera access','er');
-    } else if(e.name === 'NotFoundError'){
-      toast('No camera found on this device','er');
-    } else {
-      toast('Scanner error — type VIN manually','er');
-      console.error(e);
-    }
-  }
+function openVinScanner(){
+  scannedVin = null;
+  $('vinPreviewImg').classList.remove('show');
+  $('vinScanErr').classList.remove('show');
+  $('vinScanStatus').classList.remove('show');
+  $('vinScanResult').classList.remove('show');
+  $('vinUseBtn').style.display='none';
+  $('vinPhotoInput').value='';
+  $('vinScanOverlay').classList.add('open');
 }
 
 function closeVinScanner(){
   $('vinScanOverlay').classList.remove('open');
-  if(vinScanner){ try{ vinScanner.reset(); }catch(e){} vinScanner=null; }
-  if(vinStream){ vinStream.getTracks().forEach(t=>t.stop()); vinStream=null; }
+  scannedVin = null;
+}
+
+async function processVinPhoto(input){
+  const file = input.files[0];
+  if(!file) return;
+
+  // Show preview
+  const reader = new FileReader();
+  reader.onload = e => {
+    $('vinPreviewImg').src = e.target.result;
+    $('vinPreviewImg').classList.add('show');
+  };
+  reader.readAsDataURL(file);
+
+  // Reset state
+  $('vinScanErr').classList.remove('show');
+  $('vinScanResult').classList.remove('show');
+  $('vinUseBtn').style.display='none';
+  $('vinScanStatus').textContent = '🔍 Reading VIN from photo...';
+  $('vinScanStatus').classList.add('show');
+
+  try {
+    // Convert to base64
+    const base64 = await new Promise((res,rej)=>{
+      const r = new FileReader();
+      r.onload = ()=>res(r.result.split(',')[1]);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+
+    // Call Claude AI to read VIN from image
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: file.type, data: base64 }
+            },
+            {
+              type: 'text',
+              text: 'Look at this image and find the VIN (Vehicle Identification Number). It is a 17-character alphanumeric code. It may appear as printed text or as a barcode on a sticker. Return ONLY the 17-character VIN with no spaces, dashes, or explanation. If you cannot find a VIN, return exactly: NOT_FOUND'
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await response.json();
+    const raw = data.content?.[0]?.text?.trim() || '';
+    const vin = raw.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase().slice(0,17);
+
+    $('vinScanStatus').classList.remove('show');
+
+    if(vin.length === 17 && raw !== 'NOT_FOUND'){
+      scannedVin = vin;
+      $('vinScanResult').textContent = vin;
+      $('vinScanResult').classList.add('show');
+      $('vinUseBtn').style.display='block';
+    } else {
+      $('vinScanErr').textContent = "Couldn't find a VIN in this photo. Try a clearer photo of the sticker or barcode.";
+      $('vinScanErr').classList.add('show');
+    }
+  } catch(e){
+    $('vinScanStatus').classList.remove('show');
+    $('vinScanErr').textContent = 'Error reading photo. Please try again.';
+    $('vinScanErr').classList.add('show');
+    console.error(e);
+  }
+}
+
+function useScannedVin(){
+  if(!scannedVin) return;
+  closeVinScanner();
+  $('f_vin').value = scannedVin;
+  onVin($('f_vin'));
+  toast('VIN scanned ✓ — details auto-filled');
 }
 function getKnownVendors(){
   const all=[...bizExps,...recurringExps]
