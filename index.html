@@ -959,7 +959,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
   <div class="vin-scan-box">
     <div class="vin-scan-icon">📷</div>
     <div class="vin-scan-title">Scan VIN</div>
-    <div class="vin-scan-sub">Take a photo of the VIN barcode or sticker — found on the driver's door jamb or dashboard</div>
+    <div class="vin-scan-sub">Take a photo of the <strong style="color:#fbbf24">barcode</strong> on the door jamb sticker — or the VIN plate on the dashboard. Make sure it's well lit and in focus.</div>
     <img id="vinPreviewImg" class="vin-scan-preview" alt="VIN photo">
     <div class="vin-scan-err" id="vinScanErr"></div>
     <div class="vin-scan-status" id="vinScanStatus">🔍 Reading VIN from photo...</div>
@@ -1477,7 +1477,7 @@ function renderAll(){
 function updateBadge(){$('invBadge').textContent=cars.filter(c=>c.status!=='Sold').length;}
 
 // ── VIN SCANNER ──
-// ── VIN SCANNER (Photo + AI Vision) ──
+// ── VIN SCANNER (BarcodeDetector + Canvas fallback) ──
 let scannedVin = null;
 
 function openVinScanner(){
@@ -1501,73 +1501,102 @@ async function processVinPhoto(input){
   if(!file) return;
 
   // Show preview
-  const reader = new FileReader();
-  reader.onload = e => {
+  const previewReader = new FileReader();
+  previewReader.onload = e => {
     $('vinPreviewImg').src = e.target.result;
     $('vinPreviewImg').classList.add('show');
   };
-  reader.readAsDataURL(file);
+  previewReader.readAsDataURL(file);
 
   // Reset state
   $('vinScanErr').classList.remove('show');
   $('vinScanResult').classList.remove('show');
   $('vinUseBtn').style.display='none';
-  $('vinScanStatus').textContent = '🔍 Reading VIN from photo...';
+  $('vinScanStatus').textContent = '🔍 Scanning for VIN...';
   $('vinScanStatus').classList.add('show');
 
-  try {
-    // Convert to base64
-    const base64 = await new Promise((res,rej)=>{
-      const r = new FileReader();
-      r.onload = ()=>res(r.result.split(',')[1]);
-      r.onerror = rej;
-      r.readAsDataURL(file);
-    });
+  // Load image onto canvas
+  const img = new Image();
+  const objUrl = URL.createObjectURL(file);
+  img.src = objUrl;
+  await new Promise(res=>{ img.onload=res; img.onerror=res; });
 
-    // Call Claude AI to read VIN from image
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: file.type, data: base64 }
-            },
-            {
-              type: 'text',
-              text: 'Look at this image and find the VIN (Vehicle Identification Number). It is a 17-character alphanumeric code. It may appear as printed text or as a barcode on a sticker. Return ONLY the 17-character VIN with no spaces, dashes, or explanation. If you cannot find a VIN, return exactly: NOT_FOUND'
-            }
-          ]
-        }]
-      })
-    });
+  let foundVin = null;
 
-    const data = await response.json();
-    const raw = data.content?.[0]?.text?.trim() || '';
-    const vin = raw.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase().slice(0,17);
-
-    $('vinScanStatus').classList.remove('show');
-
-    if(vin.length === 17 && raw !== 'NOT_FOUND'){
-      scannedVin = vin;
-      $('vinScanResult').textContent = vin;
-      $('vinScanResult').classList.add('show');
-      $('vinUseBtn').style.display='block';
-    } else {
-      $('vinScanErr').textContent = "Couldn't find a VIN in this photo. Try a clearer photo of the sticker or barcode.";
-      $('vinScanErr').classList.add('show');
-    }
-  } catch(e){
-    $('vinScanStatus').classList.remove('show');
-    $('vinScanErr').textContent = 'Error reading photo. Please try again.';
-    $('vinScanErr').classList.add('show');
-    console.error(e);
+  // Method 1: Native BarcodeDetector (works on modern iOS Safari + Chrome Android)
+  if('BarcodeDetector' in window){
+    try {
+      const detector = new BarcodeDetector({ formats: ['code_39','code_128','data_matrix','pdf417','qr_code'] });
+      const barcodes = await detector.detect(img);
+      for(const b of barcodes){
+        const clean = b.rawValue.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
+        if(clean.length === 17){ foundVin = clean; break; }
+        // Sometimes VIN is embedded in longer string
+        const match = clean.match(/[A-HJ-NPR-Z0-9]{17}/);
+        if(match){ foundVin = match[0]; break; }
+      }
+    } catch(e){ console.log('BarcodeDetector error:', e); }
   }
+
+  // Method 2: Canvas pixel scan — draw image and try ZXing-style decode via canvas
+  if(!foundVin){
+    try {
+      const canvas = document.createElement('canvas');
+      // Try multiple scales for better detection
+      for(const scale of [1, 0.5, 2]){
+        canvas.width = Math.min(img.width * scale, 1920);
+        canvas.height = Math.min(img.height * scale, 1080);
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        if('BarcodeDetector' in window){
+          const detector = new BarcodeDetector({ formats: ['code_39','code_128','data_matrix','pdf417','qr_code','aztec'] });
+          const barcodes = await detector.detect(canvas);
+          for(const b of barcodes){
+            const clean = b.rawValue.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
+            if(clean.length === 17){ foundVin = clean; break; }
+            const match = clean.match(/[A-HJ-NPR-Z0-9]{17}/);
+            if(match){ foundVin = match[0]; break; }
+          }
+          if(foundVin) break;
+        }
+      }
+    } catch(e){ console.log('Canvas scan error:', e); }
+  }
+
+  URL.revokeObjectURL(objUrl);
+  $('vinScanStatus').classList.remove('show');
+
+  if(foundVin){
+    scannedVin = foundVin;
+    $('vinScanResult').textContent = foundVin;
+    $('vinScanResult').classList.add('show');
+    $('vinUseBtn').style.display = 'block';
+  } else {
+    // Show manual entry fallback
+    $('vinScanErr').innerHTML = `
+      <div style="margin-bottom:10px">Couldn't auto-read the VIN. Try a clearer photo of the barcode, or enter it manually below:</div>
+      <div style="display:flex;gap:8px">
+        <input id="vinManualInput" placeholder="Type VIN here..." maxlength="17"
+          style="flex:1;padding:9px 12px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.5px;text-transform:uppercase;outline:none"
+          oninput="this.value=this.value.toUpperCase();checkManualVin()">
+        <button class="btn btn-gold btn-sm" onclick="useManualVin()" id="vinManualBtn" style="opacity:.5;pointer-events:none">Use</button>
+      </div>`;
+    $('vinScanErr').classList.add('show');
+  }
+}
+
+function checkManualVin(){
+  const val = $('vinManualInput')?.value||'';
+  const btn = $('vinManualBtn');
+  if(btn){ btn.style.opacity = val.length===17?'1':'0.5'; btn.style.pointerEvents = val.length===17?'auto':'none'; }
+}
+
+function useManualVin(){
+  const val = $('vinManualInput')?.value?.trim().toUpperCase()||'';
+  if(val.length!==17){ toast('VIN must be exactly 17 characters','er'); return; }
+  scannedVin = val;
+  useScannedVin();
 }
 
 function useScannedVin(){
@@ -1575,7 +1604,7 @@ function useScannedVin(){
   closeVinScanner();
   $('f_vin').value = scannedVin;
   onVin($('f_vin'));
-  toast('VIN scanned ✓ — details auto-filled');
+  toast('VIN applied ✓ — details auto-filled');
 }
 function getKnownVendors(){
   const all=[...bizExps,...recurringExps]
