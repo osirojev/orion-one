@@ -1079,17 +1079,7 @@ async function authSubmit(){
         : error.message;
       err.classList.add('show');
     } else if(data?.session){
-      // Manually trigger app boot if onAuthStateChange doesn't fire
-      currentUser = data.session.user;
-      const initials = currentUser.email.slice(0,2).toUpperCase();
-      $('userAvatar').textContent = initials;
-      $('userEmail').textContent = currentUser.email;
-      if($('mobUserEmail')) $('mobUserEmail').textContent = currentUser.email;
-      await loadData();
-      autoPostRecurring();
-      $('authScreen').style.display='none';
-      $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-      renderDash(); updateBadge();
+      bootApp(data.session.user);
     }
   } catch(e) {
     btn.disabled=false; btn.textContent='Sign In';
@@ -1105,23 +1095,32 @@ async function signOut(){
   });
 }
 
-// Listen for auth state
+// ── AUTH STATE LISTENER (backup boot) ──
+let appBooted = false;
+async function bootApp(user){
+  if(appBooted) return;
+  appBooted = true;
+  currentUser = user;
+  const initials = currentUser.email.slice(0,2).toUpperCase();
+  $('userAvatar').textContent = initials;
+  $('userEmail').textContent = currentUser.email;
+  if($('mobUserEmail')) $('mobUserEmail').textContent = currentUser.email;
+  await loadData();
+  autoPostRecurring();
+  $('authScreen').style.display='none';
+  $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+  renderDash(); updateBadge();
+}
+
 _supa.auth.onAuthStateChange(async (event, session) => {
-  if(session?.user){
-    currentUser = session.user;
-    // Update user pill
-    const initials = currentUser.email.slice(0,2).toUpperCase();
-    $('userAvatar').textContent = initials;
-    $('userEmail').textContent = currentUser.email;
-    if($('mobUserEmail')) $('mobUserEmail').textContent = currentUser.email;
-    // Load data then boot app
-    await loadData();
-    autoPostRecurring();
-    $('authScreen').style.display='none';
-    $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
-    renderDash(); updateBadge();
-  }
+  if(session?.user) bootApp(session.user);
 });
+
+// Also check for existing session immediately on load
+(async()=>{
+  const { data } = await _supa.auth.getSession();
+  if(data?.session?.user) bootApp(data.session.user);
+})();
 
 // ── MOBILE HELPERS ──
 function mobTabActive(el){
