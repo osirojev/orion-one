@@ -991,7 +991,12 @@ tbody tr.clickable:hover td{background:#fafaf9}
 const SUPA_URL = 'https://afxcexxblgguvtomnhtz.supabase.co';
 const SUPA_KEY = 'sb_publishable_ilt1G1YKz3PSK5w6JPKeZg_ivm3lgkR';
 const _supa = supabase.createClient(SUPA_URL, SUPA_KEY, {
-  auth: { detectSessionInUrl: true, persistSession: true }
+  auth: {
+    detectSessionInUrl: true,
+    persistSession: true,
+    storageKey: 'orion-one-auth',
+    flowType: 'implicit'
+  }
 });
 
 // ── HANDLE EMAIL CONFIRMATION REDIRECT ──
@@ -1064,13 +1069,33 @@ async function authSubmit(){
   err.classList.remove('show');
   if(!email||!pass){ err.textContent='Please enter your email and password.'; err.classList.add('show'); return; }
   btn.disabled=true; btn.textContent='Signing in…';
-  const result = await _supa.auth.signInWithPassword({email, password:pass});
-  btn.disabled=false; btn.textContent='Sign In';
-  if(result.error){
-    err.textContent = result.error.message==='Invalid login credentials'
-      ? 'Incorrect email or password. Please try again.'
-      : result.error.message;
+
+  try {
+    const { data, error } = await _supa.auth.signInWithPassword({email, password:pass});
+    btn.disabled=false; btn.textContent='Sign In';
+    if(error){
+      err.textContent = error.message==='Invalid login credentials'
+        ? 'Incorrect email or password. Please try again.'
+        : error.message;
+      err.classList.add('show');
+    } else if(data?.session){
+      // Manually trigger app boot if onAuthStateChange doesn't fire
+      currentUser = data.session.user;
+      const initials = currentUser.email.slice(0,2).toUpperCase();
+      $('userAvatar').textContent = initials;
+      $('userEmail').textContent = currentUser.email;
+      if($('mobUserEmail')) $('mobUserEmail').textContent = currentUser.email;
+      await loadData();
+      autoPostRecurring();
+      $('authScreen').style.display='none';
+      $('dashDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'});
+      renderDash(); updateBadge();
+    }
+  } catch(e) {
+    btn.disabled=false; btn.textContent='Sign In';
+    err.textContent='Connection error — check your internet and try again.';
     err.classList.add('show');
+    console.error(e);
   }
 }
 
