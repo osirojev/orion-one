@@ -559,6 +559,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
     <div class="page-header">
       <div><div class="ph-title">Dashboard</div><div class="ph-sub" id="dashDate"></div></div>
       <div class="ph-actions">
+        <button class="btn btn-ghost" id="refreshBtn" onclick="manualRefresh()" title="Sync latest data" style="padding:8px 12px;font-size:13px">🔄 Sync</button>
         <button class="btn btn-gold" onclick="openDeal()">🤝 Record Deal</button>
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
       </div>
@@ -1123,7 +1124,23 @@ async function bootApp(user){
   renderDash(); updateBadge();
 }
 
-_supa.auth.onAuthStateChange(async (event, session) => {
+async function manualRefresh(){
+  const btn = $('refreshBtn');
+  if(btn){ btn.textContent='🔄 Syncing...'; btn.disabled=true; }
+  await loadData();
+  renderDash(); updateBadge();
+  if(curPage==='inventory') renderInventory();
+  if(curPage==='sold') renderSold();
+  if(curPage==='pl') renderPL();
+  if(curPage==='expenses') renderExpenses();
+  if(btn){ btn.textContent='🔄 Sync'; btn.disabled=false; }
+  toast('Inventory synced ✓');
+}
+
+// Auto-refresh every 2 minutes to catch new ACV imports
+setInterval(()=>{ if(currentUser) manualRefresh(); }, 2 * 60 * 1000);
+
+
   if(session?.user) bootApp(session.user);
 });
 
