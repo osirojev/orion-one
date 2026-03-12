@@ -1140,7 +1140,7 @@ async function manualRefresh(){
 // Auto-refresh every 2 minutes to catch new ACV imports
 setInterval(()=>{ if(currentUser) manualRefresh(); }, 2 * 60 * 1000);
 
-
+_supa.auth.onAuthStateChange(async (event, session) => {
   if(session?.user) bootApp(session.user);
 });
 
