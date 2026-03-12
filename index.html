@@ -599,6 +599,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
           </select>
         </div>
         <button class="btn btn-ghost" onclick="openImportCSV()" title="Import vehicles from DealersCloud CSV">⬆ Import CSV</button>
+        <button class="btn btn-ghost" onclick="openImportExpenses()" title="Import expenses from DealersCloud CSV">💸 Import Expenses</button>
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
       </div>
     </div>
@@ -2245,6 +2246,158 @@ document.addEventListener('keydown',e=>{
 // Global error handler
 window.addEventListener('unhandledrejection',e=>{console.error(e.reason);});
 
+// ── EXPENSE IMPORT (DealersCloud) ──
+let expParsedRows = [];
+
+function mapExpenseCategory(type){
+  const t = (type||'').toUpperCase().trim();
+  if(t==='REPAIRS'||t==='PARTS'||t==='INSPECTION') return 'Parts & Repair';
+  if(t==='BODY WORKS'||t==='DETAILING') return 'Detailing & Cosmetic';
+  if(t==='TOWING') return 'Transport / Towing';
+  return 'Other';
+}
+
+function openImportExpenses(){
+  expParsedRows = [];
+  $('expFileInput').value = '';
+  $('expPreviewWrap').innerHTML = '';
+  $('expImportStatus').textContent = '';
+  $('expImportBtn').disabled = true;
+  openModal('mImportExpenses');
+}
+
+function handleExpFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.csv')){
+    $('expImportStatus').innerHTML = '<span style="color:var(--red)">⚠ Please select a .csv file</span>';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ev => parseAndPreviewExpenses(ev.target.result);
+  reader.readAsText(file);
+}
+
+function parseAndPreviewExpenses(text){
+  const lines = text.trim().split(/\r?\n/);
+  if(lines.length < 2){
+    $('expImportStatus').innerHTML = '<span style="color:var(--red)">⚠ CSV appears empty</span>';
+    return;
+  }
+
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  const col = h => headers.indexOf(h);
+
+  const iVIN    = col('VIN');
+  const iSTK    = col('STK #');
+  const iVendor = col('Vendor');
+  const iType   = col('Type');
+  const iAmount = col('Amount');
+  const iDate   = col('Trans Date');
+
+  if(iVIN === -1 || iAmount === -1){
+    $('expImportStatus').innerHTML = '<span style="color:var(--red)">⚠ Could not find required columns (VIN, Amount). Is this a DealersCloud expense export?</span>';
+    return;
+  }
+
+  expParsedRows = [];
+  let noMatchCount = 0;
+
+  for(let i = 1; i < lines.length; i++){
+    if(!lines[i].trim()) continue;
+    const fields = [];
+    let cur = '', inQ = false;
+    for(const ch of lines[i]){
+      if(ch==='"'){ inQ=!inQ; }
+      else if(ch===','&&!inQ){ fields.push(cur.trim()); cur=''; }
+      else { cur+=ch; }
+    }
+    fields.push(cur.trim());
+    const get = idx => (idx>=0&&idx<fields.length)?fields[idx].replace(/^"|"$/g,'').trim():'';
+
+    const vin    = get(iVIN).toUpperCase();
+    const stk    = get(iSTK);
+    const vendor = get(iVendor);
+    const type   = get(iType);
+    const amount = parseFloat(get(iAmount).replace(/[,$]/g,''))||0;
+    const date   = get(iDate);
+
+    // Match to existing vehicle by VIN, fallback to stock number
+    const matchedCar = cars.find(c => c.vin === vin) ||
+                       cars.find(c => (c.stock||'').toUpperCase() === stk.toUpperCase());
+
+    if(!matchedCar) noMatchCount++;
+
+    expParsedRows.push({ vin, stk, vendor, type, amount, date, matchedCar });
+  }
+
+  const matchCount = expParsedRows.filter(r=>r.matchedCar).length;
+
+  let html = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-2)">
+    Found <strong>${expParsedRows.length}</strong> expenses —
+    <span style="color:var(--green);font-weight:700">${matchCount} matched to vehicles</span>
+    ${noMatchCount>0?`, <span style="color:var(--gold);font-weight:700">${noMatchCount} no vehicle match (will skip)</span>`:''}
+  </div>
+  <div style="overflow-x:auto;max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)">
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+    <thead><tr style="background:#fafaf9;position:sticky;top:0">
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Vehicle</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Vendor</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Category</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Amount</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Status</th>
+    </tr></thead><tbody>`;
+
+  for(const r of expParsedRows){
+    const rowStyle = r.matchedCar ? '' : 'opacity:.4';
+    const vehicleLabel = r.matchedCar ? cname(r.matchedCar) : `${r.stk||r.vin} <span style="color:var(--red);font-size:11px">(not found)</span>`;
+    const statusBadge = r.matchedCar
+      ? `<span style="background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Import</span>`
+      : `<span style="background:var(--red-bg);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Skip</span>`;
+    html += `<tr style="${rowStyle};border-bottom:1px solid var(--border)">
+      <td style="padding:9px 12px;font-weight:600">${vehicleLabel}</td>
+      <td style="padding:9px 12px;color:var(--text-2)">${r.vendor}</td>
+      <td style="padding:9px 12px"><span style="background:var(--blue-bg);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${mapExpenseCategory(r.type)}</span></td>
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-weight:600">$${r.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:9px 12px">${statusBadge}</td>
+    </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  $('expPreviewWrap').innerHTML = html;
+  $('expImportStatus').textContent = '';
+  $('expImportBtn').disabled = matchCount === 0;
+}
+
+async function runExpenseImport(){
+  const toImport = expParsedRows.filter(r => r.matchedCar);
+  if(!toImport.length){ toast('Nothing to import','er'); return; }
+
+  $('expImportBtn').disabled = true;
+  $('expImportBtn').textContent = 'Importing...';
+
+  let added = 0;
+  for(const r of toImport){
+    const car = cars.find(c => c.id === r.matchedCar.id);
+    if(!car) continue;
+    if(!Array.isArray(car.expenses)) car.expenses = [];
+    car.expenses.push({
+      id: uid(),
+      desc: r.vendor || r.type,
+      amount: r.amount,
+      category: mapExpenseCategory(r.type)
+    });
+    added++;
+  }
+
+  await save();
+  renderAll();
+  closeModal('mImportExpenses');
+  toast(`✅ Imported ${added} expense${added!==1?'s':''} across ${new Set(toImport.map(r=>r.matchedCar.id)).size} vehicles`);
+  $('expImportBtn').disabled = false;
+  $('expImportBtn').textContent = 'Import Expenses';
+}
+
 // ── CSV IMPORT (DealersCloud) ──
 let csvParsedRows = [];
 
@@ -2421,6 +2574,33 @@ async function runCSVImport(){
 }
 
 </script>
+
+<!-- ── IMPORT EXPENSES MODAL ── -->
+<div class="modal-overlay" id="mImportExpenses">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">💸 Import Expenses</div>
+        <div class="modal-sub">Upload your DealersCloud Vehicles-Expense Summary CSV</div>
+      </div>
+      <button class="close-btn" onclick="closeModal('mImportExpenses')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="border:2px dashed var(--border-strong);border-radius:var(--r);padding:28px;text-align:center;background:#fafaf9;margin-bottom:16px;cursor:pointer" onclick="$('expFileInput').click()">
+        <div style="font-size:32px;margin-bottom:8px">💸</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">Click to select your expenses CSV</div>
+        <div style="font-size:12.5px;color:var(--text-3)">Export from DealersCloud → Reports → Expense Summary → Export</div>
+        <input type="file" id="expFileInput" accept=".csv" style="display:none" onchange="handleExpFile(event)">
+      </div>
+      <div id="expImportStatus" style="font-size:13px;margin-bottom:10px"></div>
+      <div id="expPreviewWrap"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mImportExpenses')">Cancel</button>
+      <button class="btn btn-dark" id="expImportBtn" onclick="runExpenseImport()" disabled>Import Expenses</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── IMPORT CSV MODAL ── -->
 <div class="modal-overlay" id="mImportCSV">
