@@ -184,7 +184,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
 
 .qadd{background:#fafaf9;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);padding:12px;margin-top:10px}
 .qadd-label{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
-.qadd-row{display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:center}
+.qadd-row{display:grid;grid-template-columns:130px 1fr 1fr 100px auto;gap:8px;align-items:center}
 .qadd select,.qadd input{padding:7px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
 .qadd select:focus,.qadd input:focus{border-color:var(--accent)}
 
@@ -1266,6 +1266,8 @@ function renderDP(){
 
   const qadd=c.status!=='Sold'?`<div class="qadd"><div class="qadd-label">+ Add Expense</div><div class="qadd-row">
     <select id="qa_cat">${CATS.map(ct=>`<option>${ct}</option>`).join('')}</select>
+    <input id="qa_vendor" type="text" placeholder="Vendor (e.g. Autozone)">
+    <input id="qa_desc" type="text" placeholder="Description (e.g. Brake pads)">
     <input id="qa_amt" type="number" placeholder="$0.00" step="0.01" min="0" onkeydown="if(event.key==='Enter')qaExp('${c.id}')">
     <button class="btn btn-dark btn-sm" onclick="qaExp('${c.id}')">Add</button>
   </div></div>`:'';
@@ -1324,8 +1326,13 @@ function qaExp(id){
   if(!amt||amt<=0){$('qa_amt').style.borderColor='var(--red)';setTimeout(()=>$('qa_amt').style.borderColor='',1500);return;}
   const c=cars.find(x=>x.id===id);if(!c)return;
   if(!c.expenses)c.expenses=[];
-  c.expenses.push({category:cat,amount:amt});
-  save();renderAll();renderDP();$('qa_amt').value='';
+  const vendor=($('qa_vendor')||{}).value?.trim()||'';
+  const desc=($('qa_desc')||{}).value?.trim()||'';
+  c.expenses.push({id:uid(),category:cat,vendor,desc,amount:amt});
+  save();renderAll();renderDP();
+  $('qa_amt').value='';
+  if($('qa_vendor'))$('qa_vendor').value='';
+  if($('qa_desc'))$('qa_desc').value='';
   toast(`Expense added — ${fmt(amt)}`);
 }
 
