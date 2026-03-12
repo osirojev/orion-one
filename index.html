@@ -598,6 +598,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
             <option value="Dealer">Dealer</option>
           </select>
         </div>
+        <button class="btn btn-ghost" onclick="openImportCSV()" title="Import vehicles from DealersCloud CSV">⬆ Import CSV</button>
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
       </div>
     </div>
@@ -2244,6 +2245,214 @@ document.addEventListener('keydown',e=>{
 // Global error handler
 window.addEventListener('unhandledrejection',e=>{console.error(e.reason);});
 
+// ── CSV IMPORT (DealersCloud) ──
+let csvParsedRows = [];
+
+function openImportCSV(){
+  csvParsedRows = [];
+  $('csvFileInput').value = '';
+  $('csvPreviewWrap').innerHTML = '';
+  $('csvImportStatus').textContent = '';
+  $('csvImportBtn').disabled = true;
+  openModal('mImportCSV');
+}
+
+function handleCSVFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(!file.name.toLowerCase().endsWith('.csv')){
+    $('csvImportStatus').innerHTML = '<span style="color:var(--red)">⚠ Please select a .csv file</span>';
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    parseAndPreviewCSV(ev.target.result);
+  };
+  reader.readAsText(file);
+}
+
+function parseAndPreviewCSV(text){
+  const lines = text.trim().split(/\r?\n/);
+  if(lines.length < 2){
+    $('csvImportStatus').innerHTML = '<span style="color:var(--red)">⚠ CSV appears empty</span>';
+    return;
+  }
+
+  // Parse header
+  const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g,'').trim());
+  const col = h => headers.indexOf(h);
+
+  // Map DealersCloud columns
+  const iYear    = col('Year');
+  const iMake    = col('Make');
+  const iModel   = col('Model');
+  const iTrim    = col('Trim');
+  const iColor   = col('Color');
+  const iEngine  = col('Engine');
+  const iVIN     = col('VIN');
+  const iMiles   = col('Mileage');
+  const iCost    = col('Cost');
+  const iStock   = col('Stock#');
+
+  if(iVIN === -1 || iMake === -1){
+    $('csvImportStatus').innerHTML = '<span style="color:var(--red)">⚠ Could not find required columns (VIN, Make). Is this a DealersCloud export?</span>';
+    return;
+  }
+
+  csvParsedRows = [];
+  const existingVINs = new Set(cars.map(c => c.vin).filter(Boolean));
+  let dupeCount = 0;
+
+  for(let i = 1; i < lines.length; i++){
+    if(!lines[i].trim()) continue;
+    // Handle quoted CSV fields
+    const fields = [];
+    let cur = '', inQ = false;
+    for(let ch of lines[i]){
+      if(ch==='"'){ inQ=!inQ; }
+      else if(ch===','&&!inQ){ fields.push(cur.trim()); cur=''; }
+      else { cur+=ch; }
+    }
+    fields.push(cur.trim());
+
+    const get = idx => (idx >= 0 && idx < fields.length) ? fields[idx].replace(/^"|"$/g,'').trim() : '';
+
+    const vin   = get(iVIN).toUpperCase();
+    const make  = get(iMake).toUpperCase();
+    const model = get(iModel);
+    const trim  = get(iTrim);
+    const year  = get(iYear);
+    const color = get(iColor);
+    const miles = parseInt(get(iMiles).replace(/,/g,'')) || 0;
+    const cost  = parseFloat(get(iCost).replace(/[,$]/g,'')) || 0;
+    const stock = get(iStock) || autoStock(vin);
+    const engine= get(iEngine);
+
+    const isDupe = vin.length === 17 && existingVINs.has(vin);
+    if(isDupe) dupeCount++;
+
+    csvParsedRows.push({
+      vin, year, make,
+      model: trim ? model + ' ' + trim : model,
+      color, miles, cost, stock, engine,
+      isDupe
+    });
+  }
+
+  // Build preview table
+  const newCount = csvParsedRows.filter(r=>!r.isDupe).length;
+  let html = `<div style="margin-bottom:10px;font-size:13px;color:var(--text-2)">
+    Found <strong>${csvParsedRows.length}</strong> vehicles —
+    <span style="color:var(--green);font-weight:700">${newCount} new</span>
+    ${dupeCount > 0 ? `, <span style="color:var(--gold);font-weight:700">${dupeCount} already in app (will skip)</span>` : ''}
+  </div>
+  <div style="overflow-x:auto;max-height:340px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)">
+  <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+    <thead><tr style="background:#fafaf9;position:sticky;top:0">
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Stock #</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Vehicle</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">VIN</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Miles</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Cost</th>
+      <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.8px;border-bottom:1px solid var(--border)">Status</th>
+    </tr></thead>
+    <tbody>`;
+
+  for(const r of csvParsedRows){
+    const rowStyle = r.isDupe ? 'opacity:.45' : '';
+    const statusBadge = r.isDupe
+      ? `<span style="background:var(--gold-bg);color:var(--gold);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Skip (dupe)</span>`
+      : `<span style="background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Import</span>`;
+    html += `<tr style="${rowStyle};border-bottom:1px solid var(--border)">
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${r.stock}</td>
+      <td style="padding:9px 12px;font-weight:600">${[r.year,r.make,r.model].filter(Boolean).join(' ')}</td>
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${r.vin}</td>
+      <td style="padding:9px 12px">${r.miles.toLocaleString()}</td>
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace">$${r.cost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
+      <td style="padding:9px 12px">${statusBadge}</td>
+    </tr>`;
+  }
+
+  html += '</tbody></table></div>';
+  $('csvPreviewWrap').innerHTML = html;
+  $('csvImportStatus').textContent = '';
+  $('csvImportBtn').disabled = newCount === 0;
+}
+
+async function runCSVImport(){
+  const toImport = csvParsedRows.filter(r => !r.isDupe);
+  if(!toImport.length){ toast('Nothing to import','er'); return; }
+
+  $('csvImportBtn').disabled = true;
+  $('csvImportBtn').textContent = 'Importing...';
+
+  const today = new Date().toISOString().slice(0,10);
+  let added = 0;
+
+  for(const r of toImport){
+    const car = {
+      id: uid(),
+      vin: r.vin,
+      stock: r.stock,
+      year: r.year,
+      make: r.make,
+      model: r.model,
+      color: r.color,
+      mileage: r.miles,
+      price: r.cost,
+      source: 'Dealer',
+      sourceName: 'DealersCloud Import',
+      purchaseDate: today,
+      notes: r.engine ? 'Engine: ' + r.engine : '',
+      expenses: [],
+      photos: [],
+      status: 'Active'
+    };
+    cars.unshift(car);
+    added++;
+  }
+
+  await save();
+  renderAll();
+  closeModal('mImportCSV');
+  toast(`✅ Imported ${added} vehicle${added!==1?'s':''} successfully`);
+  $('csvImportBtn').disabled = false;
+  $('csvImportBtn').textContent = 'Import Vehicles';
+}
+
 </script>
+
+<!-- ── IMPORT CSV MODAL ── -->
+<div class="modal-overlay" id="mImportCSV">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">⬆ Import from DealersCloud</div>
+        <div class="modal-sub">Upload your Manage-Vehicles CSV export to migrate inventory</div>
+      </div>
+      <button class="close-btn" onclick="closeModal('mImportCSV')">✕</button>
+    </div>
+    <div class="modal-body">
+      <!-- Drop zone -->
+      <div style="border:2px dashed var(--border-strong);border-radius:var(--r);padding:28px;text-align:center;background:#fafaf9;margin-bottom:16px;cursor:pointer" onclick="$('csvFileInput').click()">
+        <div style="font-size:32px;margin-bottom:8px">📄</div>
+        <div style="font-weight:700;font-size:14px;margin-bottom:4px">Click to select your CSV file</div>
+        <div style="font-size:12.5px;color:var(--text-3)">Export from DealersCloud → Inventory → Manage Vehicles → Export</div>
+        <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="handleCSVFile(event)">
+      </div>
+
+      <!-- Status / error -->
+      <div id="csvImportStatus" style="font-size:13px;margin-bottom:10px"></div>
+
+      <!-- Preview table -->
+      <div id="csvPreviewWrap"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mImportCSV')">Cancel</button>
+      <button class="btn btn-dark" id="csvImportBtn" onclick="runCSVImport()" disabled>Import Vehicles</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
