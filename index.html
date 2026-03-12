@@ -234,7 +234,7 @@ tbody tr.clickable:hover td{background:#fafaf9}
 .vin-pill.err{background:var(--red-bg);border:1px solid #fecaca;color:var(--red);display:flex}
 
 .exp-list{display:flex;flex-direction:column;gap:8px}
-.exp-row{display:grid;grid-template-columns:1fr 120px 34px;gap:8px;align-items:center}
+.exp-row{display:grid;grid-template-columns:140px 1fr 1fr 110px 34px;gap:8px;align-items:center;margin-bottom:6px}
 .exp-row select,.exp-row input{padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
 .exp-row select:focus,.exp-row input:focus{border-color:var(--accent)}
 .exp-del-btn{width:34px;height:34px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);color:var(--text-3);cursor:pointer;display:grid;place-items:center;font-size:15px;transition:all .15s;flex-shrink:0}
@@ -1259,7 +1259,10 @@ function renderDP(){
     buyerSection+=`<div class="dp-section"><div class="dp-section-title">📝 Deal Notes</div><div class="dp-notes">${c.dealNotes}</div></div>`;
   }
 
-  const expRows=(c.expenses||[]).map((e,i)=>`<div class="cost-row"><span class="cost-label indent">↳ ${e.category}${c.status!=='Sold'?`<button class="exp-remove" onclick="delExp('${c.id}',${i})" title="Remove">✕</button>`:''}</span><span class="cost-amount">${fmt(e.amount)}</span></div>`).join('');
+  const expRows=(c.expenses||[]).map((e,i)=>{
+    const label=[e.vendor,e.desc].filter(Boolean).join(' — ')||e.category;
+    return`<div class="cost-row"><span class="cost-label indent" style="flex-direction:column;align-items:flex-start;gap:1px"><span style="display:flex;align-items:center;gap:6px">↳ <strong>${label}</strong>${c.status!=='Sold'?`<button class="exp-remove" onclick="delExp('${c.id}',${i})" title="Remove">✕</button>`:''}</span><span style="font-size:11px;color:var(--text-3);padding-left:14px">${e.category}</span></span><span class="cost-amount">${fmt(e.amount)}</span></div>`;
+  }).join('');
 
   const qadd=c.status!=='Sold'?`<div class="qadd"><div class="qadd-label">+ Add Expense</div><div class="qadd-row">
     <select id="qa_cat">${CATS.map(ct=>`<option>${ct}</option>`).join('')}</select>
@@ -1360,16 +1363,24 @@ function openEditVehicle(id){
 function addExpRow(e={}){
   const row=document.createElement('div');row.className='exp-row';
   row.innerHTML=`<select>${CATS.map(c=>`<option${e.category===c?' selected':''}>${c}</option>`).join('')}</select>
+    <input type="text" placeholder="Vendor (e.g. Autozone)" value="${e.vendor||''}">
+    <input type="text" placeholder="Description (e.g. Brake pads)" value="${e.desc||''}">
     <input type="number" placeholder="Amount $" value="${e.amount||''}" step="0.01" min="0">
     <button class="exp-del-btn" onclick="this.closest('.exp-row').remove()" title="Remove">✕</button>`;
   $('expList').appendChild(row);
 }
 
 function getExps(){
-  return[...$('expList').querySelectorAll('.exp-row')].map(r=>({
-    category:r.querySelector('select').value,
-    amount:parseFloat(r.querySelector('input').value)||0
-  })).filter(e=>e.amount>0);
+  return[...$('expList').querySelectorAll('.exp-row')].map(r=>{
+    const inputs=r.querySelectorAll('input');
+    return{
+      id:r.dataset.id||uid(),
+      category:r.querySelector('select').value,
+      vendor:inputs[0].value.trim(),
+      desc:inputs[1].value.trim(),
+      amount:parseFloat(inputs[2].value)||0
+    };
+  }).filter(e=>e.amount>0);
 }
 
 function saveVehicle(){
