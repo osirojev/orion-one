@@ -301,6 +301,19 @@ tbody tr.clickable:hover td{background:#fafaf9}
 .buyer-opt-sub{font-size:11px;color:var(--text-3);margin-top:1px}
 .buyer-opt.new-buyer{color:var(--blue);font-weight:600;font-size:13px}
 
+.condition-picker{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.cond-btn{display:flex;align-items:center;gap:7px;padding:7px 12px;border:1.5px solid var(--border);border-radius:20px;background:var(--surface);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;color:var(--text-2);transition:all .15s;user-select:none}
+.cond-btn:hover{border-color:var(--accent)}
+.cond-btn.active{color:#fff;border-color:transparent}
+.cond-btn .cond-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.cond-btn[data-cond="green"].active{background:#16a34a}
+.cond-btn[data-cond="blue"].active{background:#2563eb}
+.cond-btn[data-cond="red"].active{background:#dc2626}
+.cond-btn[data-cond="yellow"].active{background:#d97706}
+.used-toggle{display:flex;gap:0;border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;width:fit-content;margin-top:6px}
+.used-btn{padding:6px 16px;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;border:none;background:var(--surface);color:var(--text-2);transition:all .15s}
+.used-btn.active{background:var(--accent);color:#fff}
+
 .profit-bar{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:12px}
 .pbar-cell{padding:12px 14px;text-align:center;border-right:1px solid var(--border)}
 .pbar-cell:last-child{border-right:none}
@@ -924,6 +937,22 @@ tbody tr.clickable:hover td{background:#fafaf9}
             <div class="fg"><label>Payment Method</label><select id="d_pay"><option>Check</option><option>Wire Transfer</option><option>Cash</option><option>Dealer Trade</option><option>Floorplan</option><option>Other</option></select></div>
           </div>
           <div class="frow cols1"><div class="fg"><label>Deal Type</label><select id="d_type"><option>Wholesale</option><option>Retail</option><option>Auction Sale</option><option>Trade</option></select></div></div>
+          <div class="frow cols1"><div class="fg">
+            <label>Vehicle Sold As</label>
+            <div class="used-toggle">
+              <button class="used-btn active" id="usedBtn" onclick="setUsed('USED')">USED</button>
+              <button class="used-btn" id="newBtn" onclick="setUsed('NEW')">NEW</button>
+            </div>
+          </div></div>
+          <div class="frow cols1"><div class="fg">
+            <label>Condition / Color Type <span style="font-weight:400;color:var(--text-3)">(for Bill of Sale)</span></label>
+            <div class="condition-picker">
+              <button class="cond-btn" data-cond="green" onclick="setCond(this)"><span class="cond-dot" style="background:#16a34a"></span>Green – Ride & Drive</button>
+              <button class="cond-btn" data-cond="blue"  onclick="setCond(this)"><span class="cond-dot" style="background:#2563eb"></span>Blue – Title Attached</button>
+              <button class="cond-btn" data-cond="red"   onclick="setCond(this)"><span class="cond-dot" style="background:#dc2626"></span>Red – As Is</button>
+              <button class="cond-btn" data-cond="yellow" onclick="setCond(this)"><span class="cond-dot" style="background:#d97706"></span>Yellow – Caution</button>
+            </div>
+          </div></div>
           <div id="profitBar"></div>
         </div>
         <div class="fs">
@@ -1537,7 +1566,19 @@ function openDeal(preId){
   closeBuyerDD();
   $('d_date').value=new Date().toISOString().slice(0,10);
   $('d_pay').value='Check';$('d_type').value='Wholesale';$('profitBar').innerHTML='';
+  // reset condition
+  document.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active'));
+  setUsed('USED');
   closeDP();openModal('mDeal');if(preId)calcProfit();
+}
+
+function setUsed(val){
+  $('usedBtn')?.classList.toggle('active', val==='USED');
+  $('newBtn')?.classList.toggle('active',  val==='NEW');
+}
+function setCond(btn){
+  document.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
 }
 
 function pickCar(id,el){
@@ -1576,7 +1617,9 @@ function confirmDeal(){
     buyerLicense:$('d_lic').value.trim(),
     buyerAddress:$('d_addr').value.trim(),
     dealPayment:$('d_pay').value,dealType:$('d_type').value,
-    dealNotes:$('d_notes').value.trim()
+    dealNotes:$('d_notes').value.trim(),
+    vehicleSoldAs:$('usedBtn')?.classList.contains('active')?'USED':'NEW',
+    dealCondition:document.querySelector('.cond-btn.active')?.dataset.cond||''
   });
   save();closeModal('mDeal');renderAll();
   toast(`Deal recorded! ${cname(c)} — ${pr>=0?'Profit':'Loss'}: ${fmt(Math.abs(pr))}`,pr>=0?'ok':'info');
@@ -2606,16 +2649,30 @@ function printBillOfSale(id){
   t('Announcements:', 304, y+11);
   ln(L,y+13,300,y+13);
   sp('helvetica','normal'); doc.setFontSize(8.5);
-  // USED checkbox (checked)
-  doc.rect(L+4,y+17,8,8); sp('helvetica','bold'); t('x',L+5,y+24); sp('helvetica','normal');
+  const isUsed=(c.vehicleSoldAs||'USED')==='USED';
+  const cond=c.dealCondition||'';
+  // USED / NEW checkboxes
+  doc.rect(L+4,y+17,8,8);
+  if(isUsed){ sp('helvetica','bold'); t('x',L+5,y+24); sp('helvetica','normal'); }
   t('USED', L+16, y+24);
   doc.rect(L+4,y+29,8,8);
+  if(!isUsed){ sp('helvetica','bold'); t('x',L+5,y+36); sp('helvetica','normal'); }
   t('NEW', L+16, y+36);
-  // color dots
-  doc.setFillColor(0,180,0);   doc.circle(L+72,y+21,5,'F'); sp('helvetica','normal'); doc.setFontSize(7.5); t('Green - Ride & Drive',L+80,y+24);
-  doc.setFillColor(0,80,200);  doc.circle(L+170,y+21,5,'F'); t('Blue - Title Attached',L+178,y+24);
-  doc.setFillColor(220,0,0);   doc.circle(L+72,y+34,5,'F'); t('Red - As Is',L+80,y+37);
-  doc.setFillColor(230,200,0); doc.circle(L+170,y+34,5,'F'); t('Yellow - Caution',L+178,y+37);
+  // color condition checkboxes + dots
+  const condItems=[
+    {key:'green', color:[0,160,0],   label:'Green - Ride & Drive', cx:L+72, cy:y+21, tx:L+80, ty:y+24},
+    {key:'blue',  color:[0,80,200],  label:'Blue - Title Attached',cx:L+170,cy:y+21, tx:L+178,ty:y+24},
+    {key:'red',   color:[220,0,0],   label:'Red - As Is',          cx:L+72, cy:y+34, tx:L+80, ty:y+37},
+    {key:'yellow',color:[210,160,0], label:'Yellow - Caution',     cx:L+170,cy:y+34, tx:L+178,ty:y+37},
+  ];
+  condItems.forEach(({key,color,label,cx,cy,tx,ty})=>{
+    doc.setFillColor(...color); doc.circle(cx,cy,5,'F');
+    // checkbox next to dot
+    doc.setDrawColor(0,0,0); doc.rect(cx-18,cy-5,8,8);
+    if(cond===key){ sp('helvetica','bold'); doc.setTextColor(0,0,0); t('x',cx-17,cy+2); sp('helvetica','normal'); }
+    sp('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(0,0,0);
+    t(label,tx,ty);
+  });
   doc.setTextColor(0,0,0);
 
   // ── 7. TWO-COLUMN: ODOMETER (left) + PRICING (right) ──
