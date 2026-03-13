@@ -288,6 +288,19 @@ tbody tr.clickable:hover td{background:#fafaf9}
 .vpi-name{flex:1;font-size:13.5px;font-weight:700}
 .vpi-cost{font-family:'DM Mono',monospace;font-size:12px;color:var(--text-3);white-space:nowrap}
 
+.buyer-select-wrap{position:relative;margin-bottom:12px}
+.buyer-select-wrap input{width:100%;padding:9px 36px 9px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s}
+.buyer-select-wrap input:focus{border-color:var(--accent)}
+.buyer-select-wrap::after{content:'▾';position:absolute;right:11px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text-3);pointer-events:none}
+.buyer-dropdown{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow-md);z-index:300;max-height:220px;overflow-y:auto;display:none}
+.buyer-dropdown.open{display:block}
+.buyer-opt{padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .1s}
+.buyer-opt:last-child{border-bottom:none}
+.buyer-opt:hover{background:#fafaf9}
+.buyer-opt-name{font-size:13px;font-weight:700;color:var(--text)}
+.buyer-opt-sub{font-size:11px;color:var(--text-3);margin-top:1px}
+.buyer-opt.new-buyer{color:var(--blue);font-weight:600;font-size:13px}
+
 .profit-bar{display:grid;grid-template-columns:repeat(4,1fr);border:1.5px solid var(--border);border-radius:var(--r-sm);overflow:hidden;margin-top:12px}
 .pbar-cell{padding:12px 14px;text-align:center;border-right:1px solid var(--border)}
 .pbar-cell:last-child{border-right:none}
@@ -915,6 +928,10 @@ tbody tr.clickable:hover td{background:#fafaf9}
         </div>
         <div class="fs">
           <div class="fs-title">👤 Buyer Information</div>
+          <div class="buyer-select-wrap">
+            <input id="buyerSearch" placeholder="Search saved buyers or type new name..." autocomplete="off" oninput="filterBuyers(this.value)" onfocus="openBuyerDD()" onblur="setTimeout(closeBuyerDD,180)">
+            <div class="buyer-dropdown" id="buyerDD"></div>
+          </div>
           <div class="frow cols1"><div class="fg"><label>Dealership / Buyer Name *</label><input id="d_buyer" placeholder="ABC Motors LLC"></div></div>
           <div class="frow cols1"><div class="fg"><label>Contact Person</label><input id="d_contact" placeholder="John Smith"></div></div>
           <div class="frow">
@@ -1447,6 +1464,65 @@ function delCar(id){
     onOk:async()=>{cars=cars.filter(x=>x.id!==id);await deleteFromCloud('cars',id);closeDP();renderAll();toast('Vehicle deleted','info');}});
 }
 
+// ── BUYER SELECTOR ──
+function getSavedBuyers(){
+  const seen = new Set();
+  return cars
+    .filter(c => c.status==='Sold' && c.buyer)
+    .sort((a,b)=>(b.soldDate||'').localeCompare(a.soldDate||''))
+    .filter(c => { if(seen.has(c.buyer.toLowerCase()))return false; seen.add(c.buyer.toLowerCase()); return true; })
+    .map(c=>({ name:c.buyer, contact:c.buyerContact2||'', phone:c.buyerPhone||'', email:c.buyerEmail||'', license:c.buyerLicense||'', address:c.buyerAddress||'' }));
+}
+
+function openBuyerDD(){
+  $('buyerSearch').value='';
+  filterBuyers('');
+}
+
+function closeBuyerDD(){
+  const dd=$('buyerDD');
+  if(dd) dd.classList.remove('open');
+}
+
+function filterBuyers(q){
+  const dd=$('buyerDD'); if(!dd)return;
+  const buyers=getSavedBuyers();
+  const filtered=q ? buyers.filter(b=>b.name.toLowerCase().includes(q.toLowerCase())||b.phone.includes(q)) : buyers;
+  let html='';
+  if(filtered.length){
+    html=filtered.map((b,i)=>`
+      <div class="buyer-opt" onmousedown="selectBuyer(${i},'${encodeURIComponent(JSON.stringify(b))}')">
+        <div class="buyer-opt-name">${b.name}</div>
+        <div class="buyer-opt-sub">${[b.phone,b.address].filter(Boolean).join(' · ')}</div>
+      </div>`).join('');
+  }
+  html+=`<div class="buyer-opt new-buyer" onmousedown="newBuyer('${encodeURIComponent(q)}')">+ Add "${q||'new buyer'}" as new contact</div>`;
+  dd.innerHTML=html;
+  dd.classList.add('open');
+}
+
+function selectBuyer(i, encoded){
+  try{
+    const b=JSON.parse(decodeURIComponent(encoded));
+    $('d_buyer').value  = b.name;
+    $('d_contact').value= b.contact;
+    $('d_phone').value  = b.phone;
+    $('d_email').value  = b.email;
+    $('d_lic').value    = b.license;
+    $('d_addr').value   = b.address;
+    $('buyerSearch').value = b.name;
+    closeBuyerDD();
+  }catch(e){ console.error(e); }
+}
+
+function newBuyer(encodedName){
+  const name=decodeURIComponent(encodedName);
+  ['d_buyer','d_contact','d_phone','d_email','d_lic','d_addr'].forEach(id=>{ const el=$(id); if(el)el.value=''; });
+  if(name){ $('d_buyer').value=name; $('buyerSearch').value=name; }
+  closeBuyerDD();
+  $('d_buyer').focus();
+}
+
 function openDeal(preId){
   dealCarId=preId||null;
   const active=cars.filter(c=>c.status!=='Sold');
@@ -1457,6 +1533,8 @@ function openDeal(preId){
       <span class="vpi-cost">${fmt(allIn(c))}</span>
     </div>`).join(''):'<div class="empty" style="padding:20px">No active inventory</div>';
   ['d_buyer','d_contact','d_phone','d_email','d_lic','d_addr','d_notes','d_price'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  if($('buyerSearch'))$('buyerSearch').value='';
+  closeBuyerDD();
   $('d_date').value=new Date().toISOString().slice(0,10);
   $('d_pay').value='Check';$('d_type').value='Wholesale';$('profitBar').innerHTML='';
   closeDP();openModal('mDeal');if(preId)calcProfit();
@@ -2426,161 +2504,215 @@ function printBillOfSale(id){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit:'pt', format:'letter' });
 
-  const W = 612, mar = 50;
-  let y = 0;
+  const W=612, H=792, L=40, R=572;
+  const fmtM = v => '$'+Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtDate = v => { if(!v)return''; const d=new Date(v+'T12:00:00'); return(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); };
+  const ln = (x1,y1,x2,y2,w=0.5)=>{ doc.setLineWidth(w); doc.line(x1,y1,x2,y2); };
+  const t  = (s,x,y,o={})=> doc.text(String(s||''),x,y,o);
+  const sp = doc.setFont.bind(doc);
 
-  // ── helpers ──
-  const line  = (x1,y1,x2,y2,lw=0.5) => { doc.setLineWidth(lw); doc.line(x1,y1,x2,y2); };
-  const txt   = (t,x,yy,opts={}) => { doc.text(String(t||''),x,yy,opts); };
-  const box   = (x,yy,w,h,fill) => { if(fill){ doc.setFillColor(...fill); doc.rect(x,yy,w,h,'F'); } else doc.rect(x,yy,w,h); };
-  const fmtD  = v => v ? new Date(v+'T12:00:00').toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : '________________';
-  const fmtM  = v => v ? '$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}) : '$0.00';
-  const val   = v => v || '—';
+  // ── 1. COMPANY HEADER ──
+  sp('helvetica','bold'); doc.setFontSize(16); doc.setTextColor(0,0,0);
+  t('ORION ONE LLC', W/2, 30, {align:'center'});
+  sp('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(180,100,0);
+  t('1815 JIM WALTER DR. TEXARKANA, AR 71854', W/2, 42, {align:'center'});
+  doc.setTextColor(0,0,0);
 
-  // ── header bar ──
-  doc.setFillColor(24,24,27);
-  doc.rect(0,0,W,58,'F');
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(18);
-  txt('WHOLESALE BILL OF SALE', W/2, 26, {align:'center'});
-  doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.setTextColor(180,180,180);
-  txt('STATE OF ARKANSAS  ·  AS-IS / WHERE-IS', W/2, 42, {align:'center'});
-  txt('Orion One Wholesale', W/2, 53, {align:'center'});
-  y = 78;
+  // ── 2. WHOLESALE BUYERS ORDER HEADER ──
+  let y=54;
+  sp('helvetica','bold'); doc.setFontSize(13);
+  t('WHOLE SALE', L, y+10);
+  t('BUYERS ORDER', L, y+24);
+  sp('helvetica','normal'); doc.setFontSize(9);
+  t('Phone:', 200, y+10); ln(220,y+11,290,y+11);
+  t('Fax:',   200, y+24); ln(215,y+25,290,y+25);
+  sp('helvetica','bold');
+  t('Sale Date', 420, y+10); sp('helvetica','normal'); t(fmtDate(c.soldDate), 470, y+10);
+  sp('helvetica','bold');
+  t('Stock #',   420, y+24); sp('helvetica','normal'); t(c.stock||'', 460, y+24);
+  ln(L,y+32,R,y+32,1);
 
-  // ── doc number & date row ──
-  doc.setTextColor(40,40,40);
-  doc.setFont('helvetica','bold'); doc.setFontSize(8.5);
-  txt('Document #', mar, y);
-  doc.setFont('helvetica','normal');
-  txt(c.stock||c.id.slice(-8).toUpperCase(), mar+60, y);
-  doc.setFont('helvetica','bold');
-  txt('Date of Sale:', W-mar-110, y);
-  doc.setFont('helvetica','normal');
-  txt(fmtD(c.soldDate), W-mar-50, y);
-  y += 18;
-  line(mar, y, W-mar, y);
-  y += 16;
+  // ── 3. AS IS TITLE ──
+  y+=40;
+  sp('helvetica','bold'); doc.setFontSize(14);
+  t('AS IS SALE - SOLD WITHOUT WARRANTY', W/2, y+14, {align:'center'});
+  ln(L,y+20,R,y+20,1);
 
-  // ── section helper ──
-  const sectionHead = (label) => {
-    doc.setFillColor(245,244,240);
-    doc.rect(mar, y-11, W-mar*2, 16,'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(8);
-    doc.setTextColor(100,100,100);
-    txt(label.toUpperCase(), mar+4, y);
-    doc.setTextColor(40,40,40);
-    y += 14;
-  };
+  // ── 4. SOLD TO SECTION ──
+  y+=24;
+  doc.rect(L,y,R-L,62);
+  ln(300,y,300,y+62);
+  ln(L,y+20,R,y+20);
+  ln(L,y+41,R,y+41);
 
-  const field = (label, value, x, width) => {
-    doc.setFont('helvetica','bold'); doc.setFontSize(7.5);
-    doc.setTextColor(120,120,120);
-    txt(label, x, y);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9);
-    doc.setTextColor(20,20,20);
-    const maxW = width - 4;
-    const lines = doc.splitTextToSize(val(value), maxW);
-    txt(lines[0], x, y+11);
-    line(x, y+13, x+width, y+13, 0.3);
-  };
+  sp('helvetica','bold'); doc.setFontSize(11);
+  t('SOLD TO:', L+4, y+14);
+  sp('helvetica','normal'); doc.setFontSize(9);
+  t('Buyer:', L+4, y+33);
+  sp('helvetica','bold'); t(c.buyer||'', L+32, y+33);
 
-  const rowH = 30;
+  sp('helvetica','normal');
+  t('Phone:', L+4, y+55); ln(L+35,y+56,L+120,y+56);
+  t('Fax:', L+130, y+55); ln(L+148,y+56,L+230,y+56);
 
-  // ── SELLER ──
-  sectionHead('Seller Information');
-  field('Business Name', 'Orion One Wholesale', mar, 260);
-  field('State', 'Arkansas', mar+270, 100);
-  field('Phone', '', mar+380, 130);
-  y += rowH;
-  field('Address', '', mar, 390);
-  y += rowH + 4;
+  sp('helvetica','normal'); doc.setFontSize(9);
+  t('Address:', 304, y+14);
+  sp('helvetica','bold'); t(c.buyerAddress||'', 340, y+14);
+  sp('helvetica','normal');
+  t('City,State,', 304, y+27);
+  t('Zip:', 304, y+38);
+  sp('helvetica','bold'); t('', 325, y+38);
+  sp('helvetica','normal');
+  t('Web:', 304, y+55); ln(320,y+56,R-4,y+56);
 
-  // ── BUYER ──
-  sectionHead('Buyer Information');
-  field('Buyer / Dealership Name', c.buyer, mar, 260);
-  field('Phone', c.buyerPhone, mar+270, 150);
-  field('License #', c.buyerLicense, mar+430, 110);
-  y += rowH;
-  field('Address', c.buyerAddress, mar, 390);
-  field('Email', c.buyerEmail, mar+400, 150);
-  y += rowH + 4;
+  // ── 5. VEHICLE TABLE ──
+  y+=66;
+  const cols=[L,L+55,L+145,L+265,L+340,L+400,L+463,R];
+  const heads=['Year','Make','Model','Type/Doors','Odometer','Exceeds mech. limits.','Not Actual'];
+  doc.setFillColor(240,240,240);
+  doc.rect(L,y,R-L,14,'F');
+  doc.rect(L,y,R-L,28);
+  ln(L,y+14,R,y+14);
+  sp('helvetica','bold'); doc.setFontSize(7.5);
+  heads.forEach((h,i)=>{ ln(cols[i+1],y,cols[i+1],y+28); t(h,cols[i]+2,y+10); });
+  sp('helvetica','bold'); doc.setFontSize(9);
+  t(c.year||'',    cols[0]+2, y+24);
+  t(c.make||'',    cols[1]+2, y+24);
+  // truncate long model
+  const modelStr = doc.splitTextToSize(c.model||'', cols[2+1]-cols[2]-4)[0]||'';
+  t(modelStr,      cols[2]+2, y+24);
+  t('',            cols[3]+2, y+24);
+  t(c.mileage?Number(c.mileage).toLocaleString():'', cols[4]+2, y+24);
+  // checkboxes
+  doc.rect(cols[5]+8, y+17, 7, 7);
+  doc.rect(cols[6]+8, y+17, 7, 7);
 
-  // ── VEHICLE ──
-  sectionHead('Vehicle Description');
-  const col1=mar, col2=mar+95, col3=mar+190, col4=mar+310, col5=mar+405;
-  field('Year',   c.year,    col1, 85);
-  field('Make',   c.make,    col2, 90);
-  field('Model',  c.model,   col3, 115);
-  field('Color',  c.color,   col4, 90);
-  field('Stock #',c.stock,   col5, 100);
-  y += rowH;
-  field('VIN',     c.vin,    col1, 200);
-  field('Mileage', c.mileage?(Number(c.mileage).toLocaleString()+' mi'):'', col1+210, 110);
-  field('Payment', c.dealPayment, col1+330, 110);
-  field('Deal Type', c.dealType||'Wholesale', col1+450, 100);
-  y += rowH + 4;
+  // Color / VIN row
+  y+=28;
+  doc.rect(L,y,R-L,16);
+  ln(200,y,200,y+16);
+  sp('helvetica','normal'); doc.setFontSize(9);
+  t('Color:', L+4, y+11);
+  sp('helvetica','bold'); t(c.color||'', L+32, y+11);
+  sp('helvetica','normal'); t('VIN:', 205, y+11);
+  sp('helvetica','bold'); t(c.vin||'', 222, y+11);
 
-  // ── PRICE BOX ──
-  doc.setFillColor(24,24,27);
-  doc.rect(mar, y, W-mar*2, 36,'F');
-  doc.setTextColor(160,160,160); doc.setFont('helvetica','bold'); doc.setFontSize(8);
-  txt('TOTAL SALE PRICE', mar+10, y+13);
-  doc.setTextColor(251,191,36); doc.setFontSize(20);
-  txt(fmtM(c.salePrice), W-mar-10, y+24, {align:'right'});
-  doc.setTextColor(160,160,160); doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
-  txt('Cash / Check / Other — as agreed between parties', mar+10, y+28);
-  y += 50;
+  // ── 6. VEHICLE SOLD AS + ANNOUNCEMENTS ──
+  y+=18;
+  doc.rect(L,y,R-L,48);
+  ln(300,y,300,y+48);
+  sp('helvetica','bold'); doc.setFontSize(8);
+  t('Vehicle Sold As:', L+4, y+11);
+  t('Announcements:', 304, y+11);
+  ln(L,y+13,300,y+13);
+  sp('helvetica','normal'); doc.setFontSize(8.5);
+  // USED checkbox (checked)
+  doc.rect(L+4,y+17,8,8); sp('helvetica','bold'); t('x',L+5,y+24); sp('helvetica','normal');
+  t('USED', L+16, y+24);
+  doc.rect(L+4,y+29,8,8);
+  t('NEW', L+16, y+36);
+  // color dots
+  doc.setFillColor(0,180,0);   doc.circle(L+72,y+21,5,'F'); sp('helvetica','normal'); doc.setFontSize(7.5); t('Green - Ride & Drive',L+80,y+24);
+  doc.setFillColor(0,80,200);  doc.circle(L+170,y+21,5,'F'); t('Blue - Title Attached',L+178,y+24);
+  doc.setFillColor(220,0,0);   doc.circle(L+72,y+34,5,'F'); t('Red - As Is',L+80,y+37);
+  doc.setFillColor(230,200,0); doc.circle(L+170,y+34,5,'F'); t('Yellow - Caution',L+178,y+37);
+  doc.setTextColor(0,0,0);
 
-  // ── ODOMETER DISCLOSURE ──
-  sectionHead('Federal Odometer Disclosure Statement');
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.2); doc.setTextColor(40,40,40);
-  const odoText = `I, the seller, state that the odometer of the described vehicle reads ${c.mileage?Number(c.mileage).toLocaleString()+' miles':'________________ miles'} and to the best of my knowledge that the odometer reading reflects the actual mileage of the vehicle, unless one of the following statements is checked:`;
-  const odoLines = doc.splitTextToSize(odoText, W-mar*2-8);
-  doc.text(odoLines, mar+4, y);
-  y += odoLines.length * 10 + 4;
-  doc.setFontSize(8);
-  txt('☐  The mileage shown exceeds mechanical limits (odometer may have turned over).', mar+4, y); y+=12;
-  txt('☐  The odometer reading does not reflect actual mileage — WARNING: odometer discrepancy.', mar+4, y); y+=16;
+  // ── 7. TWO-COLUMN: ODOMETER (left) + PRICING (right) ──
+  y+=52;
+  const midX=300, leftW=midX-L-4, rightX=midX+2, rightW=R-midX-2;
 
-  // ── AS-IS DISCLOSURE ──
-  sectionHead('As-Is / No Warranty Disclosure');
-  doc.setFont('helvetica','normal'); doc.setFontSize(8.2); doc.setTextColor(40,40,40);
-  const asIsText = 'THE VEHICLE IS SOLD "AS-IS" AND "WHERE-IS" WITH NO WARRANTIES, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO ANY IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE. THE BUYER ACKNOWLEDGES THAT THEY HAVE HAD THE OPPORTUNITY TO INSPECT THE VEHICLE AND ACCEPTS IT IN ITS CURRENT CONDITION. SELLER SHALL NOT BE RESPONSIBLE FOR ANY DEFECTS, MECHANICAL FAILURES, OR OTHER ISSUES THAT MAY ARISE AFTER THE SALE.';
-  const asIsLines = doc.splitTextToSize(asIsText, W-mar*2-8);
-  doc.text(asIsLines, mar+4, y);
-  y += asIsLines.length * 10 + 16;
+  // ODOMETER DISCLOSURE STATEMENT
+  sp('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(0,0,0);
+  t('ODOMETER DISCLOSURE STATEMENT', L+(leftW/2), y+10, {align:'center'});
+  ln(L,y+12,midX,y+12);
+  sp('helvetica','normal'); doc.setFontSize(7.8);
+  const odoIntro='Federal and State law require a statement of the Vehicle\'s mileage upon transfer of ownership. Providing a false statement or failure to complete such a statement may result in fines and/or imprisonment.';
+  let oy=y+22;
+  doc.splitTextToSize(odoIntro, leftW).forEach(ln2=>{ t(ln2,L+2,oy); oy+=9.5; });
+  oy+=3;
+  t('I,', L+2, oy);
+  sp('helvetica','bold'); t('ORION ONE LLC', L+12, oy);
+  sp('helvetica','normal'); t('           (transferor\'s name)', L+12, oy);
+  oy+=10;
+  t('state that the odometer of the vehicle now reads', L+2, oy); oy+=10;
+  sp('helvetica','bold'); t(c.mileage?Number(c.mileage).toLocaleString():'', L+2, oy);
+  sp('helvetica','normal'); t('     (mileage, no tenths) miles and that to the best of my', L+2, oy); oy+=10;
+  t('knowledge it reflects the actual mileage of the Vehicle,', L+2, oy); oy+=10;
+  t('unless otherwise noted', L+2, oy); oy+=13;
+  doc.rect(L+2,oy-8,8,8);
+  const cb1='(1) I hereby certify that to the best of my knowledge the odometer reading reflects the amount of mileage in excess of its mechanical limits.';
+  doc.splitTextToSize(cb1,leftW-14).forEach(ln2=>{ t(ln2,L+14,oy); oy+=9.5; }); oy+=4;
+  doc.rect(L+2,oy-8,8,8);
+  const cb2='(2) I hereby certify that the odometer reading is NOT the actual mileage WARNING --ODOMETER DISCREPANCY';
+  doc.splitTextToSize(cb2,leftW-14).forEach(ln2=>{ t(ln2,L+14,oy); oy+=9.5; }); oy+=6;
+  sp('helvetica','bold'); doc.setFontSize(8); t(fmtDate(c.soldDate), L+midX/2, oy);
+  oy+=10;
+  ln(L+2,oy,midX-4,oy);
+  oy+=3; t('TRANSFEROR\'S SIGNATURE', L+2, oy); t('Date:',L+140,oy);
+  oy+=10; sp('helvetica','bold'); doc.setFontSize(9); t('Oyatullo Sirojev', L+2, oy);
+  sp('helvetica','normal'); doc.setFontSize(7.8); oy+=12;
+  t('PRINTED NAME OF PERSON SIGNING', L+2, oy);
 
-  // ── SIGNATURES ──
-  sectionHead('Signatures');
-  const sigY = y;
-  // Seller
-  line(mar, sigY+20, mar+210, sigY+20);
-  doc.setFont('helvetica','bold'); doc.setFontSize(7.5); doc.setTextColor(100,100,100);
-  txt('SELLER SIGNATURE', mar, sigY+30);
-  line(mar, sigY+46, mar+210, sigY+46);
-  txt('PRINTED NAME', mar, sigY+56);
-  line(mar, sigY+72, mar+100, sigY+72);
-  txt('DATE', mar, sigY+82);
+  // PRICING TABLE (right side)
+  const pRows=[
+    ['WHOLESALE VEHICLE PRICE', c.salePrice, true],
+    ['Admin Fee',0,false],['Buyer Fee',0,false],['Certified Fee',0,false],
+    ['Other Fee',0,false],['Credit Card Transaction Fee',0,false],
+  ];
+  const prH=18; let py=y;
+  pRows.forEach(([lbl,amt,bold])=>{
+    doc.rect(rightX,py,rightW,prH);
+    sp('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?9:8.5);
+    t(lbl, rightX+4, py+12);
+    sp('helvetica','normal'); doc.setFontSize(9);
+    t(fmtM(amt), R-4, py+12, {align:'right'});
+    py+=prH;
+  });
+  // SUB TOTAL
+  doc.setFillColor(245,245,245); doc.rect(rightX,py,rightW,prH,'FD');
+  sp('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  t('SUB TOTAL', rightX+4, py+12);
+  t(fmtM(c.salePrice), R-4, py+12, {align:'right'}); py+=prH;
+  // TOTAL PAID
+  doc.rect(rightX,py,rightW,prH);
+  sp('helvetica','bold'); t('TOTAL PAID', rightX+4, py+12);
+  sp('helvetica','normal'); t(fmtM(0), R-4, py+12, {align:'right'}); py+=prH;
+  // BALANCE DUE
+  doc.setFillColor(245,245,245); doc.rect(rightX,py,rightW,prH,'FD');
+  sp('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  t('BALANCE DUE', rightX+4, py+13);
+  t(fmtM(c.salePrice), R-4, py+13, {align:'right'});
 
-  // Buyer
-  const bx = W/2+10;
-  line(bx, sigY+20, bx+210, sigY+20);
-  txt('BUYER SIGNATURE', bx, sigY+30);
-  line(bx, sigY+46, bx+210, sigY+46);
-  txt('PRINTED NAME', bx, sigY+56);
-  line(bx, sigY+72, bx+100, sigY+72);
-  txt('DATE', bx, sigY+82);
+  // ── 8. TERMS PARAGRAPH ──
+  y = Math.max(oy+14, py+prH+10);
+  ln(L,y,R,y,0.5); y+=10;
+  sp('helvetica','bold'); doc.setFontSize(7.8); doc.setTextColor(0,0,0);
+  const terms='Buyer agrees that the vehicle described herein is bought subject to the Seller (Dealer) Terms and Conditions communicated to Buyer (or its Authorized Representative) in writing via hand delivery, delivery by mail or post and/or posting on the Seller (Dealer) premisse and such Seller (Dealer) Terms and Conditions are incorporated herein by reference. By executing this order, Buyer acknowledge that Buyer has read, understands and accepts the terms and conditions of this Purchase Agreement.';
+  let ty=y;
+  doc.splitTextToSize(terms,R-L).forEach(ln2=>{ t(ln2,L,ty,{maxWidth:R-L}); ty+=10; });
 
-  // ── footer ──
-  const fy = 762;
-  line(mar, fy, W-mar, fy, 0.3);
-  doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(150,150,150);
-  txt('Orion One Wholesale  ·  Arkansas  ·  This document is not a title transfer. Title transfer must be completed separately per Arkansas DMV requirements.', W/2, fy+10, {align:'center'});
+  // ── 9. SIGNATURES ──
+  y=ty+10;
+  const s1x=L, s2x=310;
+  sp('helvetica','normal'); doc.setFontSize(8.5);
+  // dates
+  t(fmtDate(c.soldDate), s1x+50, y); t(fmtDate(c.soldDate), s2x+50, y); y+=4;
+  // sig lines
+  ln(s1x,y,s1x+130,y); t('Seller\'s Signature:', s1x, y+9); t('Date:', s1x+140,y+9); ln(s1x+165,y,s1x+250,y);
+  ln(s2x,y,s2x+130,y); t('Buyer\'s Signature', s2x, y+9); t('Date:', s2x+140,y+9); ln(s2x+165,y,s2x+250,y);
+  y+=20;
+  sp('helvetica','bold'); doc.setFontSize(9);
+  t('Oyatullo Sirojev', s1x, y); t(c.buyer||'', s2x, y); y+=4;
+  ln(s1x,y,s1x+250,y); ln(s2x,y,s2x+250,y); y+=10;
+  sp('helvetica','normal'); doc.setFontSize(7.5);
+  t('Seller\'s Name (Print):', s1x, y); t('Buyer\'s Name (Print)', s2x, y); y+=10;
+  t('Authorized representative of Seller (Dealer)', s1x, y);
+  sp('helvetica','italic'); t('(C) 2008 DEALER\'S CLOUD CORP. V1.2 REV. 10/22/08', W/2, y, {align:'center'});
+  sp('helvetica','normal'); t('Authorized representative of Buyer (Purchaser)', s2x, y);
 
-  // ── save ──
-  const fname = `BillOfSale_${(c.stock||c.vin||'vehicle').replace(/\s/g,'_')}_${(c.soldDate||'').replace(/-/g,'')}.pdf`;
+  // ── SAVE ──
+  const fname=`BillOfSale_${(c.stock||c.vin||'vehicle').replace(/\s/g,'_')}_${(c.soldDate||'').replace(/-/g,'')}.pdf`;
   doc.save(fname);
   toast('📄 Bill of Sale downloaded!');
 }
