@@ -402,7 +402,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 .ac-list{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1.5px solid var(--border-strong);border-radius:var(--r-sm);box-shadow:var(--shadow-md);z-index:500;max-height:180px;overflow-y:auto;display:none;margin-top:2px}
 .ac-list.open{display:block;animation:fadeI .12s}
 .ac-item{padding:9px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;transition:background .1s}
-.ac-item:hover,.ac-item.focused{background:#f4f3ef}
+.ac-item:hover,.ac-item.focused{background:#F0F7FF}
 .ac-item-name{flex:1;font-weight:500}
 .ac-item-hint{font-size:11px;color:var(--text-3)}
 
@@ -1425,9 +1425,16 @@ function openEditVehicle(id){
 }
 
 function addExpRow(e={}){
+  const vid='vac_'+Math.random().toString(36).slice(2,8);
   const row=document.createElement('div');row.className='exp-row';
   row.innerHTML=`<select>${CATS.map(c=>`<option${e.category===c?' selected':''}>${c}</option>`).join('')}</select>
-    <input type="text" placeholder="Vendor (e.g. Autozone)" value="${e.vendor||''}">
+    <div class="ac-wrap">
+      <input id="${vid}" type="text" placeholder="Vendor (e.g. Autozone)" value="${e.vendor||''}" autocomplete="off"
+        oninput="acShowExp('${vid}','${vid}_dd')"
+        onkeydown="acKey(event,'${vid}','${vid}_dd')"
+        onblur="acBlur('${vid}_dd')">
+      <div id="${vid}_dd" class="ac-list"></div>
+    </div>
     <input type="text" placeholder="Description (e.g. Brake pads)" value="${e.desc||''}">
     <input type="number" placeholder="Amount $" value="${e.amount||''}" step="0.01" min="0">
     <button class="exp-del-btn" onclick="this.closest('.exp-row').remove()" title="Remove">✕</button>`;
@@ -1821,9 +1828,9 @@ function useScannedVin(){
   toast('VIN applied ✓ — details auto-filled');
 }
 function getKnownVendors(){
-  const all=[...bizExps,...recurringExps]
+  const vehicleVendors=cars.flatMap(c=>(c.expenses||[]).map(e=>e.vendor||'')).filter(Boolean);
+  const all=[...bizExps,...recurringExps,...vehicleVendors.map(v=>({vendor:v}))]
     .map(e=>e.vendor||'').filter(Boolean);
-  // Unique, sorted by frequency
   const freq={};
   all.forEach(v=>{freq[v]=(freq[v]||0)+1;});
   return Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([v])=>v);
@@ -1843,6 +1850,30 @@ function acShow(inputId, listId){
       <span class="ac-item-name">${v.replace(new RegExp(`(${val})`, 'gi'),'<strong>$1</strong>')}</span>
     </div>`).join('');
   list.classList.add('open');
+}
+
+function acShowExp(inputId, listId){
+  const input=document.getElementById(inputId);
+  const list=document.getElementById(listId);
+  if(!input||!list)return;
+  const val=input.value.trim().toLowerCase();
+  if(!val){list.classList.remove('open');return;}
+  const vendors=getKnownVendors().filter(v=>v.toLowerCase().includes(val));
+  if(!vendors.length){list.classList.remove('open');return;}
+  acFocusIdx=-1;
+  list.innerHTML=vendors.slice(0,8).map((v,i)=>`
+    <div class="ac-item" data-idx="${i}" onmousedown="acPickExp('${inputId}','${listId}','${v.replace(/'/g,"\\'")}')">
+      <span class="ac-item-name">${v.replace(new RegExp(`(${val})`, 'gi'),'<strong>$1</strong>')}</span>
+    </div>`).join('');
+  list.classList.add('open');
+}
+
+function acPickExp(inputId, listId, value){
+  const input=document.getElementById(inputId);
+  const list=document.getElementById(listId);
+  if(input)input.value=value;
+  if(list)list.classList.remove('open');
+  acFocusIdx=-1;
 }
 
 function acPick(inputId, listId, value){
