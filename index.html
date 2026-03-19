@@ -569,6 +569,10 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
       <span>Business Expenses</span>
     </button>
+    <button class="nav-btn" id="nb-addexp" onclick="nav('addexp',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <span>Add Expense</span>
+    </button>
   </div>
   <div class="sidebar-bottom">
     <div class="user-pill" id="userPill" onclick="signOut()" title="Sign out">
@@ -674,6 +678,33 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       </div>
     </div>
     <div class="page-body" id="bizexpBody"></div>
+  </div>
+
+  <!-- ── ADD EXPENSE PAGE ── -->
+  <div class="page" id="pg-addexp">
+    <div class="page-header">
+      <div><div class="ph-title">💸 Add Expense</div><div class="ph-sub">Search by last 6 of VIN · add expenses directly to any vehicle</div></div>
+    </div>
+    <div class="page-body">
+      <!-- VIN SEARCH -->
+      <div class="card" style="max-width:520px;margin-bottom:20px">
+        <div class="card-head"><div class="card-title">🔍 Find Vehicle</div></div>
+        <div style="padding:18px;display:flex;gap:10px;align-items:flex-end">
+          <div style="flex:1">
+            <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Last 6 of VIN (or any part)</label>
+            <input id="aeVinSearch" type="text" maxlength="17" placeholder="e.g. 023056"
+              style="width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Mono',monospace;font-size:16px;letter-spacing:3px;text-transform:uppercase;outline:none;transition:all .15s;background:var(--surface);color:var(--text)"
+              oninput="aeSearchVin(this.value)"
+              onfocus="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(37,99,235,.1)'"
+              onblur="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          </div>
+          <button class="btn btn-ghost" onclick="aeClear()" style="margin-bottom:1px">Clear</button>
+        </div>
+      </div>
+
+      <!-- RESULTS -->
+      <div id="aeResults"></div>
+    </div>
   </div>
 </main>
 
@@ -1247,6 +1278,7 @@ function nav(pg,el){
   if(pg==='sold')renderSold();
   if(pg==='pl')renderPL();
   if(pg==='bizexp')renderBizExp();
+  if(pg==='addexp')renderAddExp();
 }
 
 function toast(msg,type='ok',dur=3500){
@@ -1884,11 +1916,12 @@ function acPick(inputId, listId, value){
 
 function acBlur(listId){
   // Delay so mousedown on item fires first
-  setTimeout(()=>$(listId).classList.remove('open'), 150);
+  setTimeout(()=>{const el=document.getElementById(listId)||$(listId);if(el)el.classList.remove('open');}, 150);
 }
 
 function acKey(e, inputId, listId){
-  const list=$(listId);
+  const list=document.getElementById(listId)||$(listId);
+  if(!list)return;
   const items=list.querySelectorAll('.ac-item');
   if(!list.classList.contains('open')||!items.length) return;
   if(e.key==='ArrowDown'){
@@ -2098,6 +2131,127 @@ function delBizExp(id){
     icon:'🗑️',okLabel:'Delete',okClass:'btn-red',
     onOk:async()=>{bizExps=bizExps.filter(x=>x.id!==id);await deleteFromCloud('biz_exps',id);renderBizExp();toast('Expense deleted','info');}
   });
+}
+
+// ── ADD EXPENSE PAGE ──
+function aeSearchVin(raw){
+  try{
+    const q=(raw||'').trim().toUpperCase();
+    const el=$('aeResults');
+    if(!el)return;
+    if(q.length<2){
+      el.innerHTML=q.length?'<p style="color:var(--text-3);font-size:13px;padding:4px 0">Keep typing...</p>':'';
+      return;
+    }
+    const matches=cars.filter(c=>(c.vin||'').toUpperCase().includes(q));
+    if(!matches.length){
+      el.innerHTML=`<div class="card" style="max-width:520px"><div style="padding:30px;text-align:center;color:var(--text-3)"><div style="font-size:32px;margin-bottom:10px">🔍</div><div style="font-weight:700;font-size:15px;color:var(--text-2)">No vehicle found</div><div style="font-size:13px;margin-top:4px">No VIN contains <strong style="font-family:'DM Mono',monospace">${q}</strong></div></div></div>`;
+      return;
+    }
+    el.innerHTML=matches.map(c=>aeVehicleCard(c)).join('');
+  }catch(err){
+    console.error('aeSearchVin error:',err);
+    const el=$('aeResults');
+    if(el)el.innerHTML=`<div style="color:var(--red);padding:12px;font-size:13px">Error: ${err.message}</div>`;
+  }
+}
+
+function aeVehicleCard(c){
+  const exps=(c.expenses||[]);
+  const totalExp=exps.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const statusBadge=c.status==='Sold'?`<span class="badge b-sold"><span class="b-dot" style="background:var(--green)"></span>Sold</span>`:`<span class="badge b-active"><span class="b-dot" style="background:var(--blue)"></span>Active</span>`;
+  const expRows=exps.length?exps.map(e=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <div>
+        <span style="font-weight:600;color:var(--text)">${e.vendor||e.category||'Expense'}</span>
+        ${e.desc?`<span style="color:var(--text-3);margin-left:6px">— ${e.desc}</span>`:''}
+        <div style="font-size:11px;color:var(--text-3);margin-top:1px">${e.category||''}</div>
+      </div>
+      <span style="font-family:'DM Mono',monospace;font-weight:600;color:var(--text)">$${parseFloat(e.amount||0).toLocaleString('en-US',{minimumFractionDigits:2})}</span>
+    </div>`).join(''):`<div style="color:var(--text-3);font-size:13px;padding:10px 0">No expenses yet</div>`;
+  return `<div class="card" style="max-width:760px;margin-bottom:16px" id="ae_card_${c.id}">
+    <div class="card-head" style="background:#F8FAFC">
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <span style="font-size:16px;font-weight:800;color:var(--text)">${cname(c)}</span>
+          ${statusBadge}
+        </div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--text-3)">
+          <span>📋 Stock: <strong style="color:var(--text)">${c.stock||'—'}</strong></span>
+          <span>🔑 VIN: <strong style="font-family:monospace;color:var(--text)">${c.vin||'—'}</strong></span>
+          <span>💰 All-In: <strong style="color:var(--text)">${fmt(allIn(c))}</strong></span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:2px">TOTAL EXPENSES</div>
+        <div style="font-size:18px;font-weight:800;color:var(--red);font-family:'DM Mono',monospace">$${totalExp.toLocaleString('en-US',{minimumFractionDigits:2})}</div>
+      </div>
+    </div>
+    <div style="padding:16px 20px">
+      <!-- Existing expenses -->
+      <div style="margin-bottom:16px">${expRows}</div>
+      <!-- Add new expense form -->
+      <div style="background:#F8FAFC;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);padding:14px" id="ae_form_${c.id}">
+        <div style="font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">➕ Add New Expense</div>
+        <div style="display:grid;grid-template-columns:140px 1fr 1fr 120px auto;gap:8px;align-items:center">
+          <select id="ae_cat_${c.id}" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;width:100%">
+            ${CATS.map(cat=>`<option>${cat}</option>`).join('')}
+          </select>
+          <div class="ac-wrap">
+            <input id="ae_ven_${c.id}" type="text" placeholder="Vendor" autocomplete="off"
+              style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;width:100%;transition:border-color .15s"
+              oninput="acShowExp('ae_ven_${c.id}','ae_ven_${c.id}_dd')"
+              onkeydown="acKey(event,'ae_ven_${c.id}','ae_ven_${c.id}_dd')"
+              onblur="acBlur('ae_ven_${c.id}_dd')"
+              onfocus="this.style.borderColor='var(--accent)'" >
+            <div id="ae_ven_${c.id}_dd" class="ac-list"></div>
+          </div>
+          <input id="ae_desc_${c.id}" type="text" placeholder="Description"
+            style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;width:100%;transition:border-color .15s"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <input id="ae_amt_${c.id}" type="number" placeholder="Amount $" step="0.01" min="0"
+            style="padding:8px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);background:var(--surface);outline:none;width:100%;transition:border-color .15s"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+            onkeydown="if(event.key==='Enter')aeSaveExp('${c.id}')">
+          <button class="btn btn-dark" onclick="aeSaveExp('${c.id}')" style="white-space:nowrap">+ Save</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function aeSaveExp(carId){
+  const c=cars.find(x=>x.id===carId);if(!c)return;
+  const amt=parseFloat(document.getElementById(`ae_amt_${carId}`)?.value);
+  if(!amt||amt<=0){
+    const el=document.getElementById(`ae_amt_${carId}`);
+    if(el){el.style.borderColor='var(--red)';setTimeout(()=>el.style.borderColor='var(--border)',1500);}
+    toast('Enter a valid amount','er');return;
+  }
+  const exp={
+    id:uid(),
+    category:document.getElementById(`ae_cat_${carId}`)?.value||'Other',
+    vendor:document.getElementById(`ae_ven_${carId}`)?.value.trim()||'',
+    desc:document.getElementById(`ae_desc_${carId}`)?.value.trim()||'',
+    amount:amt
+  };
+  if(!c.expenses)c.expenses=[];
+  c.expenses.push(exp);
+  save();
+  toast(`Expense saved — ${exp.vendor||exp.category} $${amt.toFixed(2)}`,'ok');
+  // Refresh the card in place
+  const cardEl=document.getElementById(`ae_card_${carId}`);
+  if(cardEl){const fresh=document.createElement('div');fresh.innerHTML=aeVehicleCard(c);cardEl.replaceWith(fresh.firstElementChild);}
+}
+
+function aeClear(){
+  const inp=$('aeVinSearch');if(inp)inp.value='';
+  $('aeResults').innerHTML='';
+}
+
+function renderAddExp(){
+  // Reset on nav
+  aeClear();
 }
 
 function renderBizExp(){
@@ -2415,8 +2569,8 @@ function renderPL(){
 
 function fmtMo(m){const[y,mo]=m.split('-');return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+' '+y;}
 
-const WMI={'1G1':'Chevrolet','1G4':'Buick','1G6':'Cadillac','1GC':'Chevrolet','1GT':'GMC','1GN':'Chevrolet','2G1':'Chevrolet','1FA':'Ford','1FB':'Ford','1FD':'Ford','1FM':'Ford','1FT':'Ford','1LN':'Lincoln','2FA':'Ford','2FM':'Ford','3FA':'Ford','3FM':'Ford','1HG':'Honda','2HG':'Honda','2HK':'Honda','5FN':'Honda','5FR':'Acura','5J6':'Honda','JHM':'Honda','JH4':'Acura','19U':'Acura','19X':'Honda','2T1':'Toyota','2T2':'Lexus','4T1':'Toyota','4T3':'Toyota','4T4':'Toyota','5TD':'Toyota','5TF':'Toyota','5TG':'Toyota','5TJ':'Toyota','JTD':'Toyota','JTE':'Toyota','JTJ':'Lexus','JTN':'Toyota','JT6':'Lexus','JT8':'Lexus','1N4':'Nissan','1N6':'Nissan','3N1':'Nissan','5N1':'Nissan','JN1':'Nissan','JN8':'Nissan','JNK':'Infiniti','1J4':'Jeep','1J8':'Jeep','1C4':'Chrysler','1C6':'Ram','2B3':'Dodge','2C3':'Chrysler','2C4':'Chrysler','3C6':'Ram','1D7':'Ram','5NM':'Hyundai','5NP':'Hyundai','5XY':'Kia','KM8':'Hyundai','KNA':'Kia','KND':'Kia','KMH':'Hyundai','4S3':'Subaru','4S4':'Subaru','JF1':'Subaru','JF2':'Subaru','JM1':'Mazda','JM3':'Mazda','5YJ':'Tesla','5YF':'Tesla','7SA':'Tesla','3VW':'Volkswagen','WVW':'Volkswagen','WAU':'Audi','WA1':'Audi','WBS':'BMW','WBA':'BMW','WBY':'BMW','WP0':'Porsche','WP1':'Porsche','WDD':'Mercedes-Benz','WDC':'Mercedes-Benz','W1K':'Mercedes-Benz','YV1':'Volvo','YV4':'Volvo','SAJ':'Jaguar','SAL':'Land Rover','JA3':'Mitsubishi','JA4':'Mitsubishi','5UX':'BMW','5LM':'Lincoln'};
-const MDL={'1HG':{'C':'Accord','B':'Civic','R':'CR-V','Y':'Fit','D':'HR-V','S':'Pilot','L':'Odyssey','V':'Ridgeline','P':'Passport'},'2HK':{'C':'CR-V','R':'Pilot','M':'HR-V','B':'Odyssey','N':'Ridgeline'},'5FN':{'R':'Pilot','Y':'Ridgeline','B':'Odyssey'},'5FR':{'L':'MDX','R':'RDX'},'JH4':{'T':'TL','D':'Integra','B':'Legend'},'4T1':{'B':'Camry','G':'Avalon','F':'Camry','D':'Corolla','N':'Camry'},'2T1':{'B':'Corolla','G':'Matrix','K':'Corolla'},'5TD':{'Y':'Sienna','Z':'Highlander','K':'Sequoia','J':'4Runner','B':'Sienna','D':'Tacoma','F':'Tundra','G':'Highlander'},'5TF':{'C':'Tacoma','E':'Tundra','B':'Tacoma','Z':'Tundra'},'5TJ':{'B':'4Runner','M':'FJ Cruiser','N':'4Runner'},'JTE':{'B':'RAV4','D':'4Runner','G':'Land Cruiser','K':'RAV4','N':'Highlander'},'JTJ':{'B':'GX','Y':'LX','G':'RX','K':'NX','N':'UX'},'2T2':{'B':'RX','G':'GX','K':'NX','N':'RX','Z':'ES'},'1N4':{'A':'Altima','B':'Maxima','C':'Sentra','L':'Leaf','R':'Rogue','E':'Versa','G':'Murano','W':'Rogue'},'1N6':{'A':'Frontier','B':'Titan','D':'Armada'},'5N1':{'A':'Armada','C':'Pathfinder','E':'Murano','N':'Rogue','R':'Rogue','T':'Kicks'},'3N1':{'A':'Sentra','B':'Sentra','C':'Versa','F':'Kicks'},'JN1':{'A':'Murano','B':'350Z','G':'G35','T':'QX60','V':'QX80'},'JN8':{'A':'Armada','B':'Pathfinder','G':'QX60','Y':'QX80'},'1FA':{'F':'Mustang','E':'Mustang','G':'Mustang'},'1FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','E':'Escape','5':'Bronco','G':'Bronco Sport','L':'Maverick'},'1FT':{'B':'F-150','C':'F-150','F':'F-250','G':'F-350','N':'F-150','P':'F-150','A':'Ranger','7':'Maverick'},'1LN':{'L':'Navigator','J':'MKZ','N':'Corsair','Z':'Nautilus','W':'Aviator'},'1G1':{'F':'Camaro','G':'Corvette','T':'Impala','Z':'Cruze','Y':'Sonic'},'1G6':{'E':'Escalade','N':'CT4','P':'CT5','R':'ATS','T':'CT6'},'1GT':{'C':'Canyon','D':'Sierra','E':'Yukon','W':'Yukon'},'1GC':{'C':'Silverado','T':'Colorado','Z':'Colorado'},'1GN':{'B':'Equinox','C':'Traverse','D':'Suburban','E':'Tahoe','K':'Blazer','Y':'Suburban','Z':'Tahoe'},'1C4':{'G':'Grand Cherokee','J':'Wrangler','N':'Pacifica','P':'Compass','W':'Renegade','X':'Cherokee','Y':'Grand Cherokee'},'1C6':{'R':'Ram 1500','S':'Ram 1500'},'3C6':{'J':'Ram 1500','T':'Ram 2500','U':'Ram 3500'},'2B3':{'C':'Charger','K':'Challenger'},'2C3':{'C':'Charger','K':'Challenger'},'2C4':{'R':'Pacifica','G':'Grand Caravan','N':'Pacifica'},'5NM':{'S':'Santa Fe','T':'Tucson','F':'Palisade','K':'Ioniq 5','P':'Kona'},'5NP':{'D':'Sonata','E':'Elantra','B':'Sonata','X':'Elantra'},'5XY':{'K':'Sorento','P':'Sportage','T':'Telluride','U':'Soul','G':'EV6'},'KNA':{'F':'Optima','B':'Soul','C':'Forte','D':'K5'},'KND':{'J':'Sorento','M':'Sportage','T':'Sorento'},'4S4':{'B':'Outback','W':'Forester','X':'Legacy','G':'Crosstrek'},'JF1':{'B':'Legacy','G':'Impreza','S':'Forester','A':'WRX','Z':'BRZ','X':'Crosstrek'},'JM1':{'B':'Mazda3','C':'Mazda6','D':'CX-5','F':'CX-9','G':'MX-5 Miata','N':'CX-30'},'JM3':{'K':'CX-5','T':'CX-9','R':'CX-30'},'WBA':{'3':'3 Series','4':'4 Series','5':'5 Series','7':'7 Series','A':'3 Series','G':'5 Series'},'5UX':{'C':'X3','G':'X4','J':'X5','L':'X6','U':'X7','B':'X1','E':'X2'},'WBY':{'H':'i3','K':'i4','N':'iX'},'WDD':{'G':'C-Class','H':'E-Class','J':'S-Class','P':'GLC-Class','R':'GLE-Class','W':'GLS-Class'},'WDC':{'G':'GLC-Class','H':'GLE-Class','J':'GLS-Class'},'WAU':{'A':'A4','B':'A6','C':'A8','D':'A5','K':'Q3','L':'Q5','M':'Q7','N':'Q8','T':'A3'},'WA1':{'A':'Q7','B':'Q5','C':'Q3','D':'Q8','P':'e-tron'},'3VW':{'A':'Jetta','B':'Beetle','F':'Tiguan','G':'Atlas','K':'ID.4','L':'Taos'},'5YJ':{'3':'Model 3','S':'Model S','X':'Model X','Y':'Model Y'},'7SA':{'Y':'Model Y'},'YV1':{'B':'S60','G':'XC60','H':'XC90','V':'XC40'},'YV4':{'A':'XC60','D':'XC90','G':'XC40'},'WP0':{'B':'911','C':'Cayenne','D':'Panamera','E':'Macan','F':'Taycan','L':'Cayman'},'SAL':{'D':'Defender','G':'Range Rover','R':'Range Rover Sport','T':'Evoque','X':'Defender','Z':'Range Rover Sport'},'SAJ':{'D':'F-Type','F':'F-Pace','G':'E-Pace','H':'I-Pace','K':'XF'},'JA4':{'D':'Outlander','G':'Outlander Sport','J':'Outlander'}};
+const WMI={'1G1':'Chevrolet','1G4':'Buick','1G6':'Cadillac','1GC':'Chevrolet','1GT':'GMC','1GN':'Chevrolet','2G1':'Chevrolet','1FA':'Ford','1FB':'Ford','1FD':'Ford','1FM':'Ford','1FT':'Ford','1LN':'Lincoln','2FA':'Ford','2FM':'Ford','3FA':'Ford','3FM':'Ford','1HG':'Honda','2HG':'Honda','2HK':'Honda','5FP':'Honda','5FN':'Honda','5FR':'Acura','5J6':'Honda','JHM':'Honda','JH4':'Acura','19U':'Acura','19X':'Honda','2T1':'Toyota','2T2':'Lexus','4T1':'Toyota','4T3':'Toyota','4T4':'Toyota','5TD':'Toyota','5TF':'Toyota','5TG':'Toyota','5TJ':'Toyota','JTD':'Toyota','JTE':'Toyota','JTJ':'Lexus','JTN':'Toyota','JT6':'Lexus','JT8':'Lexus','1N4':'Nissan','1N6':'Nissan','3N1':'Nissan','5N1':'Nissan','JN1':'Nissan','JN8':'Nissan','JNK':'Infiniti','1J4':'Jeep','1J8':'Jeep','1C4':'Chrysler','1C6':'Ram','2B3':'Dodge','2C3':'Chrysler','2C4':'Chrysler','3C6':'Ram','1D7':'Ram','5NM':'Hyundai','5NP':'Hyundai','5XY':'Kia','KM8':'Hyundai','KNA':'Kia','KND':'Kia','KMH':'Hyundai','4S3':'Subaru','4S4':'Subaru','JF1':'Subaru','JF2':'Subaru','JM1':'Mazda','JM3':'Mazda','5YJ':'Tesla','5YF':'Tesla','7SA':'Tesla','3VW':'Volkswagen','WVW':'Volkswagen','WAU':'Audi','WA1':'Audi','WBS':'BMW','WBA':'BMW','WBY':'BMW','WP0':'Porsche','WP1':'Porsche','WDD':'Mercedes-Benz','WDC':'Mercedes-Benz','W1K':'Mercedes-Benz','YV1':'Volvo','YV4':'Volvo','SAJ':'Jaguar','SAL':'Land Rover','JA3':'Mitsubishi','JA4':'Mitsubishi','5UX':'BMW','5LM':'Lincoln'};
+const MDL={'1HG':{'C':'Accord','B':'Civic','R':'CR-V','Y':'Fit','D':'HR-V','S':'Pilot','L':'Odyssey','V':'Ridgeline','P':'Passport'},'2HK':{'C':'CR-V','R':'Pilot','M':'HR-V','B':'Odyssey','N':'Ridgeline'},'5FN':{'R':'Pilot','Y':'Ridgeline','B':'Odyssey'},'5FP':{'Y':'Ridgeline','K':'Ridgeline','B':'Ridgeline','S':'Ridgeline','F':'Ridgeline'},'5FR':{'L':'MDX','R':'RDX'},'JH4':{'T':'TL','D':'Integra','B':'Legend'},'4T1':{'B':'Camry','G':'Avalon','F':'Camry','D':'Corolla','N':'Camry'},'2T1':{'B':'Corolla','G':'Matrix','K':'Corolla'},'5TD':{'Y':'Sienna','Z':'Highlander','K':'Sequoia','J':'4Runner','B':'Sienna','D':'Tacoma','F':'Tundra','G':'Highlander'},'5TF':{'C':'Tacoma','E':'Tundra','B':'Tacoma','Z':'Tundra'},'5TJ':{'B':'4Runner','M':'FJ Cruiser','N':'4Runner'},'JTE':{'B':'RAV4','D':'4Runner','G':'Land Cruiser','K':'RAV4','N':'Highlander'},'JTJ':{'B':'GX','Y':'LX','G':'RX','K':'NX','N':'UX'},'2T2':{'B':'RX','G':'GX','K':'NX','N':'RX','Z':'ES'},'1N4':{'A':'Altima','B':'Maxima','C':'Sentra','L':'Leaf','R':'Rogue','E':'Versa','G':'Murano','W':'Rogue'},'1N6':{'A':'Frontier','B':'Titan','D':'Armada'},'5N1':{'A':'Armada','C':'Pathfinder','E':'Murano','N':'Rogue','R':'Rogue','T':'Kicks'},'3N1':{'A':'Sentra','B':'Sentra','C':'Versa','F':'Kicks'},'JN1':{'A':'Murano','B':'350Z','G':'G35','T':'QX60','V':'QX80'},'JN8':{'A':'Armada','B':'Pathfinder','G':'QX60','Y':'QX80'},'1FA':{'F':'Mustang','E':'Mustang','G':'Mustang'},'1FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','E':'Escape','5':'Bronco','G':'Bronco Sport','L':'Maverick'},'1FT':{'B':'F-150','C':'F-150','F':'F-250','G':'F-350','N':'F-150','P':'F-150','A':'Ranger','7':'Maverick'},'1LN':{'L':'Navigator','J':'MKZ','N':'Corsair','Z':'Nautilus','W':'Aviator'},'1G1':{'F':'Camaro','G':'Corvette','T':'Impala','Z':'Cruze','Y':'Sonic'},'1G6':{'E':'Escalade','N':'CT4','P':'CT5','R':'ATS','T':'CT6'},'1GT':{'C':'Canyon','D':'Sierra','E':'Yukon','W':'Yukon'},'1GC':{'C':'Silverado','T':'Colorado','Z':'Colorado'},'1GN':{'B':'Equinox','C':'Traverse','D':'Suburban','E':'Tahoe','K':'Blazer','Y':'Suburban','Z':'Tahoe'},'1C4':{'G':'Grand Cherokee','J':'Wrangler','N':'Pacifica','P':'Compass','W':'Renegade','X':'Cherokee','Y':'Grand Cherokee'},'1C6':{'R':'Ram 1500','S':'Ram 1500'},'3C6':{'J':'Ram 1500','T':'Ram 2500','U':'Ram 3500'},'2B3':{'C':'Charger','K':'Challenger'},'2C3':{'C':'Charger','K':'Challenger'},'2C4':{'R':'Pacifica','G':'Grand Caravan','N':'Pacifica'},'5NM':{'S':'Santa Fe','T':'Tucson','F':'Palisade','K':'Ioniq 5','P':'Kona'},'5NP':{'D':'Sonata','E':'Elantra','B':'Sonata','X':'Elantra'},'5XY':{'K':'Sorento','P':'Sportage','T':'Telluride','U':'Soul','G':'EV6'},'KNA':{'F':'Optima','B':'Soul','C':'Forte','D':'K5'},'KND':{'J':'Sorento','M':'Sportage','T':'Sorento'},'4S4':{'B':'Outback','W':'Forester','X':'Legacy','G':'Crosstrek'},'JF1':{'B':'Legacy','G':'Impreza','S':'Forester','A':'WRX','Z':'BRZ','X':'Crosstrek'},'JM1':{'B':'Mazda3','C':'Mazda6','D':'CX-5','F':'CX-9','G':'MX-5 Miata','N':'CX-30'},'JM3':{'K':'CX-5','T':'CX-9','R':'CX-30'},'WBA':{'3':'3 Series','4':'4 Series','5':'5 Series','7':'7 Series','A':'3 Series','G':'5 Series'},'5UX':{'C':'X3','G':'X4','J':'X5','L':'X6','U':'X7','B':'X1','E':'X2'},'WBY':{'H':'i3','K':'i4','N':'iX'},'WDD':{'G':'C-Class','H':'E-Class','J':'S-Class','P':'GLC-Class','R':'GLE-Class','W':'GLS-Class'},'WDC':{'G':'GLC-Class','H':'GLE-Class','J':'GLS-Class'},'WAU':{'A':'A4','B':'A6','C':'A8','D':'A5','K':'Q3','L':'Q5','M':'Q7','N':'Q8','T':'A3'},'WA1':{'A':'Q7','B':'Q5','C':'Q3','D':'Q8','P':'e-tron'},'3VW':{'A':'Jetta','B':'Beetle','F':'Tiguan','G':'Atlas','K':'ID.4','L':'Taos'},'5YJ':{'3':'Model 3','S':'Model S','X':'Model X','Y':'Model Y'},'7SA':{'Y':'Model Y'},'YV1':{'B':'S60','G':'XC60','H':'XC90','V':'XC40'},'YV4':{'A':'XC60','D':'XC90','G':'XC40'},'WP0':{'B':'911','C':'Cayenne','D':'Panamera','E':'Macan','F':'Taycan','L':'Cayman'},'SAL':{'D':'Defender','G':'Range Rover','R':'Range Rover Sport','T':'Evoque','X':'Defender','Z':'Range Rover Sport'},'SAJ':{'D':'F-Type','F':'F-Pace','G':'E-Pace','H':'I-Pace','K':'XF'},'JA4':{'D':'Outlander','G':'Outlander Sport','J':'Outlander'}};
 
 function getYear(v){
   const ch=v[9].toUpperCase();
