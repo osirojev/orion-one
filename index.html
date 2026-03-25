@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
 :root {
   --bg: #EEF2F7;
@@ -136,9 +137,15 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 .search-box::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none}
 .filter-sel{padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--surface);font-family:'DM Sans',sans-serif;font-size:13px;color:var(--text);outline:none;cursor:pointer;transition:border-color .15s}
 .filter-sel:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.inv-chips{display:flex;gap:8px;flex-wrap:wrap;padding:0 0 14px}
+.inv-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;border:1.5px solid var(--border);background:var(--surface);font-size:12.5px;font-weight:500;color:var(--text-2);cursor:pointer;transition:all .15s;white-space:nowrap}
+.inv-chip:hover{border-color:var(--accent);color:var(--accent)}
+.inv-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.inv-chip .chip-ct{font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px;background:rgba(0,0,0,.1);color:inherit;min-width:20px;text-align:center}
+.inv-chip.active .chip-ct{background:rgba(255,255,255,.25)}
 
 .v-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:16px}
-.vcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;box-shadow:var(--shadow-sm)}
+.vcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;box-shadow:var(--shadow-sm);display:flex;flex-direction:column}
 .vcard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent)}
 .vcard:hover{border-color:var(--accent);box-shadow:var(--shadow-md);transform:translateY(-2px)}
 .vcard-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
@@ -149,7 +156,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 .vcard-item label{font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.6px;display:block;margin-bottom:2px}
 .vcard-item span{font-size:14px;font-weight:700;color:var(--text)}
 .vcard-item span.gold{color:var(--gold)}
-.vcard-actions{display:flex;gap:8px}
+.vcard-actions{display:flex;gap:8px;margin-top:auto}
 .vcard-actions .btn{flex:1;justify-content:center}
 
 .dp-overlay{position:fixed;inset:0;background:rgba(10,10,15,.4);backdrop-filter:blur(3px);z-index:100;display:none;cursor:pointer}
@@ -184,7 +191,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 .cost-row:hover .exp-remove{opacity:1}
 .exp-remove:hover{color:var(--red)}
 
-.qadd{background:#fafaf9;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);padding:12px;margin-top:10px}
+.qadd{background:#fafaf9;border:1.5px dashed var(--border-strong);border-radius:var(--r-sm);padding:12px;margin-top:10px;overflow:visible;position:relative;z-index:10}
 .qadd-label{font-size:10.5px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
 .qadd-row{display:grid;grid-template-columns:130px 1fr 1fr 100px auto;gap:8px;align-items:center}
 .qadd select,.qadd input{padding:7px 9px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:'DM Sans',sans-serif;font-size:12.5px;color:var(--text);background:var(--surface);outline:none;transition:border-color .15s;width:100%}
@@ -534,6 +541,60 @@ tbody tr.clickable:hover td{background:#F0F7FF}
   /* VIN field scan btn */
   .vin-scan-btn{right:42px}
 }
+
+/* ── VEHICLE DETAIL PAGE ── */
+.vd-photo-hero{display:grid;grid-template-columns:1fr auto;gap:8px;margin-bottom:18px;border-radius:var(--r);overflow:hidden;max-height:360px}
+.vd-photo-main{position:relative;cursor:pointer;overflow:hidden;border-radius:var(--r);flex:1}
+.vd-photo-main img{width:100%;height:100%;object-fit:cover;min-height:220px;max-height:360px;display:block;transition:transform .2s}
+.vd-photo-main:hover img{transform:scale(1.02)}
+.vd-photo-count{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;padding:4px 10px;border-radius:20px;backdrop-filter:blur(4px)}
+.vd-photo-thumbs{display:flex;flex-direction:column;gap:8px;width:160px}
+.vd-thumb{position:relative;cursor:pointer;border-radius:var(--r-sm);overflow:hidden;flex:1}
+.vd-thumb img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s}
+.vd-thumb:hover img{transform:scale(1.04)}
+.vd-thumb-more{position:absolute;inset:0;background:rgba(0,0,0,.5);color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700}
+.vd-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.vd-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.vd-stat label{display:block;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.vd-stat span{font-size:18px;font-weight:700;color:var(--text);font-family:'DM Mono',monospace}
+.vd-stat-accent{border-color:var(--accent);background:rgba(37,99,235,.04)}
+.vd-stat-accent span{color:var(--accent)}
+.vd-stat-green{border-color:var(--green)}
+.vd-stat-green span{color:var(--green)}
+.vd-stat-red{border-color:var(--red)}
+.vd-stat-red span{color:var(--red)}
+.vd-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.vd-col-left,.vd-col-right{display:flex;flex-direction:column;gap:18px}
+.vd-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
+.vd-info-item label{display:block;font-size:11px;font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.vd-info-item span{font-size:13px;color:var(--text);font-weight:500}
+.card-sub{font-size:12px;color:var(--text-3)}
+@media(max-width:900px){
+  .vd-cols{grid-template-columns:1fr}
+  .vd-stats{grid-template-columns:repeat(2,1fr)}
+  .vd-photo-hero{grid-template-columns:1fr}
+  .vd-photo-thumbs{flex-direction:row;width:100%;height:90px}
+}
+
+/* ── TFOOT TOTALS ── */
+tfoot tr td{background:#f8fafc}
+tfoot tr:hover td{background:#f0f7ff}
+
+/* ── CLICKABLE STAT CARDS ── */
+.stat-card[onclick]{cursor:pointer}
+.stat-card[onclick]:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+
+/* ── SOLD STAT BAR ── */
+#soldStatBar .stat-card{padding:14px 16px;transition:box-shadow .15s,transform .15s}
+
+/* ── SOURCE BADGE COLORS ── */
+.src-consign{background:#e0f2fe;color:#0369a1}
+.src-private{background:#dcfce7;color:#15803d}
+.src-tradein{background:#fef3c7;color:#b45309}
+@media(max-width:540px){
+  .vd-stats{grid-template-columns:repeat(2,1fr)}
+  .vd-info-grid{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
@@ -573,6 +634,10 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       <span>Add Expense</span>
     </button>
+    <button class="nav-btn" id="nb-vendors" onclick="nav('vendors',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+      <span>1099 / Vendors</span>
+    </button>
   </div>
   <div class="sidebar-bottom">
     <div class="user-pill" id="userPill" onclick="signOut()" title="Sign out">
@@ -582,7 +647,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
     </div>
     <button class="sidebar-cta cta-deal" onclick="openDeal()" title="Shortcut: D">🤝 <span>Record Deal</span></button>
     <button class="sidebar-cta cta-vehicle" onclick="openAddVehicle()" title="Shortcut: N">+ <span>Add Vehicle</span></button>
-    <div style="font-size:9.5px;color:rgba(255,255,255,.2);text-align:center;padding:4px 0;letter-spacing:.5px">N = new vehicle &nbsp;·&nbsp; D = deal &nbsp;·&nbsp; / = search</div>
+    <div style="font-size:9.5px;color:rgba(255,255,255,.25);text-align:center;padding:4px 0;letter-spacing:.3px">⌨ <kbd style="background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:9px">N</kbd> vehicle &nbsp;·&nbsp; <kbd style="background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:9px">D</kbd> deal &nbsp;·&nbsp; <kbd style="background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:9px">/</kbd> search</div>
   </div>
 </aside>
 
@@ -628,6 +693,18 @@ tbody tr.clickable:hover td{background:#F0F7FF}
             <option value="">All Sources</option>
             <option value="Auction">Auction</option>
             <option value="Dealer">Dealer</option>
+            <option value="Consignment">Consignment</option>
+            <option value="Private">Private</option>
+            <option value="Trade-In">Trade-In</option>
+            <option value="Other">Other</option>
+          </select>
+          <select class="filter-sel" id="invSort" onchange="renderInventory()">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="days">Most Days In Stock</option>
+            <option value="price_desc">Price: High → Low</option>
+            <option value="price_asc">Price: Low → High</option>
+            <option value="az">A → Z</option>
           </select>
         </div>
         <button class="btn btn-ghost" onclick="openImportCSV()" title="Import vehicles from DealersCloud CSV">⬆ Import CSV</button>
@@ -635,23 +712,28 @@ tbody tr.clickable:hover td{background:#F0F7FF}
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
       </div>
     </div>
-    <div class="page-body"><div class="v-grid" id="invGrid"></div></div>
+    <div class="page-body">
+      <div class="inv-chips" id="invChips"></div>
+      <div class="v-grid" id="invGrid"></div>
+    </div>
   </div>
 
   <div class="page" id="pg-sold">
     <div class="page-header">
       <div><div class="ph-title">Sold Vehicles</div><div class="ph-sub" id="soldSub">All completed deals</div></div>
       <div class="ph-actions">
-        <div class="search-box"><input id="soldSearch" placeholder="Vehicle, buyer, stock..." oninput="renderSold()"></div>
+        <div class="search-box" style="position:relative"><input id="soldSearch" placeholder="Search deals..." oninput="renderSold()" onkeydown="if(event.key==='Escape'){this.value='';renderSold();}"><span style="position:absolute;right:9px;top:50%;transform:translateY(-50%);pointer-events:none;font-size:10px;font-family:'DM Mono',monospace;background:var(--border);color:var(--text-3);padding:1px 5px;border-radius:3px">ESC</span></div>
         <button class="btn btn-ghost" onclick="exportCSV()">⬇ Export CSV</button>
       </div>
     </div>
     <div class="page-body">
+      <div id="soldStatBar" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px"></div>
       <div class="card">
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>Deal Type</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th><th>Date Sold</th><th></th></tr></thead>
+            <thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>Deal Type</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th><th>Balance</th><th>Date Sold</th><th></th></tr></thead>
             <tbody id="soldBody"></tbody>
+            <tfoot id="soldFoot"></tfoot>
           </table>
         </div>
       </div>
@@ -706,6 +788,65 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       <div id="aeResults"></div>
     </div>
   </div>
+
+  <!-- ── VENDORS / 1099 PAGE ── -->
+  <div class="page" id="pg-vendors">
+    <div class="page-header">
+      <div>
+        <div class="ph-title">📋 1099 / Vendor Payments</div>
+        <div class="ph-sub">Total paid per vendor across all expenses · Vendors ≥ $600 may require a 1099</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <div id="vendorYearPills" class="month-pills" style="display:flex;gap:6px"></div>
+        <button class="btn btn-ghost btn-sm" onclick="exportVendorCSV()" title="Export CSV for 1099">⬇ Export CSV</button>
+      </div>
+    </div>
+    <div class="page-body">
+      <div id="vendorStats" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px"></div>
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">Vendor Summary</div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3)">
+              <span style="width:10px;height:10px;border-radius:2px;background:#FEF3C7;border:1px solid #F59E0B;display:inline-block"></span>≥ $600 threshold
+            </div>
+            <input id="vendorSearch" type="text" placeholder="Search vendor..." style="padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--surface);color:var(--text);outline:none;width:160px" oninput="renderVendors()">
+          </div>
+        </div>
+        <div style="overflow-x:auto">
+          <table class="tbl" id="vendorTable">
+            <thead><tr>
+              <th>Vendor</th>
+              <th style="text-align:right">Vehicle Exp</th>
+              <th style="text-align:right">Business Exp</th>
+              <th style="text-align:right">Payments</th>
+              <th style="text-align:right">Total Paid</th>
+              <th>1099</th>
+            </tr></thead>
+            <tbody id="vendorBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VEHICLE DETAIL PAGE ── -->
+  <div class="page" id="pg-vehicle">
+    <div class="page-header" id="vd-header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="btn btn-ghost btn-sm" id="vd-back" onclick="vdBack()" style="display:flex;align-items:center;gap:6px;padding:7px 12px">
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"/></svg>
+          <span id="vd-back-label">Back</span>
+        </button>
+        <div>
+          <div class="ph-title" id="vd-title">Vehicle</div>
+          <div class="ph-sub" id="vd-sub"></div>
+        </div>
+      </div>
+      <div id="vd-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+    </div>
+    <div class="page-body" id="vd-body"></div>
+  </div>
 </main>
 
 <!-- ── MOBILE BOTTOM TAB BAR ── -->
@@ -746,6 +887,13 @@ tbody tr.clickable:hover td{background:#F0F7FF}
         <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');nav('bizexp',$('nb-bizexp'));mobTabActive(null)">
           💸 <span>Business Expenses</span>
         </button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');nav('addexp',$('nb-addexp'));mobTabActive(null)">
+          🔧 <span>Add Vehicle Expense</span>
+        </button>
+        <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');nav('vendors',$('nb-vendors'));mobTabActive(null)">
+          📋 <span>1099 / Vendors</span>
+        </button>
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
         <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px 16px;font-size:15px" onclick="closeModal('mMobMore');openDeal()">
           🤝 <span>Record Deal</span>
         </button>
@@ -796,7 +944,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
         <div class="fg"><label>Date *</label><input id="be_date" type="date"></div>
         <div class="fg"><label>Vendor / Payee</label>
           <div class="ac-wrap">
-            <input id="be_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('be_vendor','be_ac')" onkeydown="acKey(event,'be_vendor','be_ac')" onblur="acBlur('be_ac')">
+            <input id="be_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('be_vendor','be_ac')" onkeydown="acKey(event,'be_vendor','be_ac')" onblur="acBlur('be_ac')" onfocus="acShow('be_vendor','be_ac')">
             <div class="ac-list" id="be_ac"></div>
           </div>
         </div>
@@ -852,11 +1000,22 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       </div>
       <div class="frow">
         <div class="fg"><label>Day of Month *</label>
-          <select id="re_day">${Array.from({length:28},(_,i)=>`<option value="${i+1}">${i+1}${[,'st','nd','rd'][i+1]||'th'}</option>`).join('')}</select>
+          <select id="re_day">
+            <option value="1">1st</option><option value="2">2nd</option><option value="3">3rd</option>
+            <option value="4">4th</option><option value="5">5th</option><option value="6">6th</option>
+            <option value="7">7th</option><option value="8">8th</option><option value="9">9th</option>
+            <option value="10">10th</option><option value="11">11th</option><option value="12">12th</option>
+            <option value="13">13th</option><option value="14">14th</option><option value="15">15th</option>
+            <option value="16">16th</option><option value="17">17th</option><option value="18">18th</option>
+            <option value="19">19th</option><option value="20">20th</option><option value="21">21st</option>
+            <option value="22">22nd</option><option value="23">23rd</option><option value="24">24th</option>
+            <option value="25">25th</option><option value="26">26th</option><option value="27">27th</option>
+            <option value="28">28th</option>
+          </select>
         </div>
         <div class="fg"><label>Vendor / Payee</label>
           <div class="ac-wrap">
-            <input id="re_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('re_vendor','re_ac')" onkeydown="acKey(event,'re_vendor','re_ac')" onblur="acBlur('re_ac')">
+            <input id="re_vendor" placeholder="e.g. AT&T, State Farm..." autocomplete="off" oninput="acShow('re_vendor','re_ac')" onkeydown="acKey(event,'re_vendor','re_ac')" onblur="acBlur('re_ac')" onfocus="acShow('re_vendor','re_ac')">
             <div class="ac-list" id="re_ac"></div>
           </div>
         </div>
@@ -915,12 +1074,47 @@ tbody tr.clickable:hover td{background:#F0F7FF}
       <div class="fs">
         <div class="fs-title">🏷️ Purchase Details</div>
         <div class="frow">
-          <div class="fg"><label>Source</label><select id="f_src"><option value="Auction">Auction</option><option value="Dealer">Dealer</option></select></div>
-          <div class="fg"><label>Source Name</label><input id="f_srcname" placeholder="Manheim, ABC Motors..."></div>
+          <div class="fg"><label>Source</label><select id="f_src" onchange="toggleConsignFields()"><option value="Auction">Auction</option><option value="Dealer">Dealer</option><option value="Consignment">Consignment</option><option value="Private">Private</option><option value="Trade-In">Trade-In</option><option value="Other">Other</option></select></div>
+          <div class="fg"><label id="f_srcname_label">Source Name</label>
+            <div class="ac-wrap">
+              <input id="f_srcname" type="text" placeholder="Manheim, ABC Motors..." autocomplete="off"
+                oninput="acShowSrc('f_srcname','f_srcname_dd')"
+                onkeydown="acKey(event,'f_srcname','f_srcname_dd')"
+                onblur="acBlur('f_srcname_dd')"
+                onfocus="acShowSrc('f_srcname','f_srcname_dd')">
+              <div id="f_srcname_dd" class="ac-list"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Consignment fields — shown only when Source = Consignment -->
+        <div class="frow" id="f_consign_row" style="display:none">
+          <div class="fg">
+            <label>Fee Type</label>
+            <select id="f_consign_type" onchange="updateConsignLabel()">
+              <option value="flat">Flat Amount Owed</option>
+              <option value="pct">% of Sale Price</option>
+            </select>
+          </div>
+          <div class="fg">
+            <label id="f_consign_fee_label">Amount Owed to Consignor ($)</label>
+            <input id="f_consign_fee" type="number" placeholder="e.g. 500" min="0">
+          </div>
+        </div>
+        <!-- Purchase Type — hidden for Consignment (handled by Source) -->
+        <div class="frow" id="f_ptype_row">
+          <div class="fg"><label>Purchase Type</label>
+            <select id="f_ptype">
+              <option value="Cash">Cash</option>
+              <option value="Floored">Floored (Floor Plan)</option>
+            </select>
+          </div>
         </div>
         <div class="frow">
           <div class="fg"><label>Purchase Date</label><input id="f_date" type="date"></div>
           <div class="fg"><label>Purchase Price ($)</label><input id="f_price" type="number" placeholder="8500"></div>
+        </div>
+        <div class="frow">
+          <div class="fg"><label>Pack Fee ($) <span style="font-weight:400;color:var(--text-3)">per-vehicle overhead</span></label><input id="f_pack" type="number" placeholder="0" min="0"></div>
         </div>
         <div class="frow cols1">
           <div class="fg"><label>Notes / Condition</label><textarea id="f_notes" placeholder="Condition, repairs needed, anything worth remembering..."></textarea></div>
@@ -969,7 +1163,15 @@ tbody tr.clickable:hover td{background:#F0F7FF}
           <div class="frow cols1"><div class="fg"><label>Sale Price ($)</label><input id="d_price" type="number" placeholder="15000" oninput="calcProfit()"></div></div>
           <div class="frow">
             <div class="fg"><label>Date of Sale</label><input id="d_date" type="date"></div>
-            <div class="fg"><label>Payment Method</label><select id="d_pay"><option>Check</option><option>Wire Transfer</option><option>Cash</option><option>Dealer Trade</option><option>Floorplan</option><option>Other</option></select></div>
+            <div class="fg"><label>Payment Method</label><select id="d_pay" onchange="toggleDealConsignFields()"><option>Check</option><option>Wire Transfer</option><option>Cash</option><option>Dealer Trade</option><option>Floorplan</option><option>Consignment</option><option>Other</option></select></div>
+          </div>
+          <!-- Consignment fields — shown only when Payment Method = Consignment -->
+          <div class="frow cols1" id="d_consign_row" style="display:none">
+            <div class="fg"><label>Consignor Name</label><input id="d_consign_name" type="text" placeholder="John Smith, ABC Autos..."></div>
+          </div>
+          <div class="frow" id="d_consign_fee_row" style="display:none">
+            <div class="fg"><label>Consignor Fee Type</label><select id="d_consign_type" onchange="updateDealConsignLabel()"><option value="flat">Flat Amount Owed</option><option value="pct">% of Sale Price</option></select></div>
+            <div class="fg"><label id="d_consign_fee_label">Amount Owed to Consignor ($)</label><input id="d_consign_fee" type="number" placeholder="e.g. 500" min="0"></div>
           </div>
           <div class="frow cols1"><div class="fg"><label>Deal Type</label><select id="d_type"><option>Wholesale</option><option>Retail</option><option>Auction Sale</option><option>Trade</option></select></div></div>
           <div class="frow cols1"><div class="fg">
@@ -1008,6 +1210,21 @@ tbody tr.clickable:hover td{background:#F0F7FF}
           </div>
           <div class="frow cols1"><div class="fg"><label>Deal Notes</label><textarea id="d_notes" placeholder="Any notes, conditions, fees..."></textarea></div></div>
         </div>
+      </div>
+      <!-- Payments Received Section -->
+      <div class="fs" style="margin-top:4px;border-top:1px solid var(--border);padding-top:18px">
+        <div class="fs-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>💵 Payments Received</span>
+          <span id="dealBalanceBadge" style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FEF3C7;color:#B45309"></span>
+        </div>
+        <div id="dealPaymentsList" style="margin-bottom:10px"></div>
+        <div class="frow" style="align-items:flex-end">
+          <div class="fg"><label>Date</label><input id="dp_date" type="date"></div>
+          <div class="fg"><label>Amount ($)</label><input id="dp_amt" type="number" placeholder="0.00" min="0" onkeydown="if(event.key==='Enter')addDealPayment()"></div>
+          <div class="fg"><label>Method</label><select id="dp_method"><option>Check</option><option>Wire Transfer</option><option>Cash</option><option>ACH</option><option>Other</option></select></div>
+          <div class="fg" style="max-width:80px"><label>&nbsp;</label><button class="btn btn-dark btn-sm" style="width:100%" onclick="addDealPayment()">+ Add</button></div>
+        </div>
+        <div id="dealPaymentSummary" style="margin-top:10px"></div>
       </div>
     </div>
     <div class="modal-foot">
@@ -1242,6 +1459,14 @@ function mobTabActive(el){
 function openMobMore(){ openModal('mMobMore'); }
 document.addEventListener('keydown', e=>{
   if($('authScreen').style.display!=='none' && e.key==='Enter') authSubmit();
+  // Global shortcuts — skip if typing in an input/textarea/select
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
+  if(e.key==='n'||e.key==='N'){ e.preventDefault(); openAddVehicle(); }
+  if(e.key==='d'||e.key==='D'){ e.preventDefault(); openDeal(); }
+  if(e.key==='/'){ e.preventDefault();
+    const s=curPage==='sold'?$('soldSearch'):$('invSearch');
+    if(s){ if(curPage!=='sold'&&curPage!=='inventory')nav('inventory',$('nb-inventory')); s.focus(); s.select(); }
+  }
 });
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function $(id){return document.getElementById(id);}
@@ -1253,9 +1478,12 @@ function esc(str){
 function fmt(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtShort(n){return fmt(n);}
 function expTotal(c){return(c.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);}
-function allIn(c){return Number(c.price||0)+expTotal(c);}
-function profit(c){return Number(c.salePrice||0)-allIn(c);}
+function allIn(c){return Number(c.price||0)+expTotal(c)+Number(c.packFee||0);}
+function profit(c){return Number(c.salePrice||0)-allIn(c)-consignorAmount(c);}
+function dealPaidTotal(c){return(c.dealPayments||[]).reduce((s,p)=>s+Number(p.amount||0),0);}
+function dealBalance(c){return Number(c.salePrice||0)-dealPaidTotal(c);}
 function cname(c){return[c.year,c.make,c.model].filter(Boolean).join(' ')||'Unknown Vehicle';}
+function srcBadgeStyle(src){const m={'Auction':'background:var(--purple-bg);color:var(--purple)','Dealer':'background:var(--gold-bg);color:var(--gold)','Consignment':'background:#e0f2fe;color:#0369a1','Private':'background:#dcfce7;color:#15803d','Trade-In':'background:#fef3c7;color:#b45309','Other':'background:var(--bg);color:var(--text-3)'};return m[src]||'background:var(--bg);color:var(--text-3)';}
 function daysIn(d,colored=false){
   if(!d)return'—';
   const n=Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000));
@@ -1270,7 +1498,8 @@ function posNum(val,fallback=0){const n=parseFloat(val);return(isNaN(n)||n<0)?fa
 function nav(pg,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
-  $('pg-'+pg).classList.add('active');
+  const pgEl=$('pg-'+pg);if(!pgEl)return;
+  pgEl.classList.add('active');
   if(el)el.classList.add('active');
   curPage=pg;closeDP();
   if(pg==='dashboard')renderDash();
@@ -1279,6 +1508,8 @@ function nav(pg,el){
   if(pg==='pl')renderPL();
   if(pg==='bizexp')renderBizExp();
   if(pg==='addexp')renderAddExp();
+  if(pg==='vendors')renderVendors();
+  // vehicle detail page: no sidebar nav item, just keep parent nav-btn highlighted
 }
 
 function toast(msg,type='ok',dur=3500){
@@ -1392,6 +1623,7 @@ function renderDP(){
     <div class="dp-section"><div class="dp-section-title">💰 Cost Breakdown <span style="font-weight:400;color:var(--text-3);font-size:10px">${(c.expenses||[]).length} expense${(c.expenses||[]).length!==1?'s':''}</span></div>
       <div class="cost-list">
         <div class="cost-row"><span class="cost-label" style="font-weight:600">Purchase Price</span><span class="cost-amount">${fmt(c.price)}</span></div>
+        ${c.packFee?`<div class="cost-row"><span class="cost-label indent" style="color:var(--text-2)">↳ Pack Fee</span><span class="cost-amount">${fmt(c.packFee)}</span></div>`:''}
         ${expRows||'<div class="cost-row"><span class="cost-label" style="color:var(--text-3);font-style:italic">No expenses yet</span><span></span></div>'}
         <div class="cost-row total-row"><span class="cost-label">All-In Cost</span><span class="cost-amount">${fmt(tc)}</span></div>
         ${c.status==='Sold'?`<div class="cost-row"><span class="cost-label">Sale Price</span><span class="cost-amount">${fmt(c.salePrice)}</span></div><div class="cost-row ${pr>=0?'profit-row':'loss-row'}"><span>${pr>=0?'✅ Profit':'❌ Loss'}</span><span class="cost-amount">${pr>=0?'+':''}${fmt(pr)}</span></div>`:''}
@@ -1408,6 +1640,266 @@ function renderDP(){
   }
   foot+=`<button class="btn btn-ghost" onclick="delCar('${c.id}')" style="color:var(--red);border-color:var(--red)">🗑</button>`;
   $('dpFooter').innerHTML=foot;
+}
+
+/* ── VEHICLE DETAIL PAGE ── */
+let vdCarId=null, vdFromPage='inventory';
+
+function openVehiclePage(id, fromPage){
+  vdCarId=id; vdFromPage=fromPage||curPage||'inventory';
+  renderVehiclePage();
+  nav('vehicle', null);
+  // Manually mark the correct sidebar button as active based on fromPage
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const nb=$('nb-'+vdFromPage);if(nb)nb.classList.add('active');
+}
+
+function vdBack(){
+  nav(vdFromPage, $('nb-'+vdFromPage));
+}
+
+function renderVehiclePage(){
+  const c=cars.find(x=>x.id===vdCarId); if(!c)return;
+  const tc=allIn(c), pr=c.status==='Sold'?profit(c):null;
+
+  // Header
+  $('vd-title').textContent=cname(c);
+  const backMap={sold:'← Sold Vehicles',inventory:'← Inventory',dashboard:'← Dashboard',pl:'← P&L',vendors:'← Vendors',bizexp:'← Business Expenses',addexp:'← Add Expense'};
+  $('vd-back-label').textContent=backMap[vdFromPage]||'← Back';
+  $('vd-sub').innerHTML=`<span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.vin||''}</span>
+    ${c.stock?`<span style="margin-left:8px;font-size:12px;color:var(--text-2)">Stock: ${c.stock}</span>`:''}
+    &nbsp;${c.status==='Sold'?'<span class="badge b-sold"><span class="b-dot" style="background:var(--green)"></span>Sold</span>':'<span class="badge b-active"><span class="b-dot" style="background:var(--blue)"></span>Active</span>'}`;
+
+  // Action buttons
+  let acts='';
+  if(c.status==='Active'){
+    acts+=`<button class="btn btn-green" onclick="openDeal('${c.id}')">🤝 Record Sale</button>`;
+    acts+=`<button class="btn btn-ghost" onclick="openEditVehicle('${c.id}')">✏️ Edit</button>`;
+  }
+  if(c.status==='Sold'){
+    acts+=`<button class="btn btn-dark" onclick="printBillOfSale('${c.id}')">🖨 Bill of Sale</button>`;
+    acts+=`<button class="btn btn-ghost" onclick="openEditDeal('${c.id}')">✏️ Edit Deal</button>`;
+  }
+  acts+=`<button class="btn btn-ghost" onclick="delCar('${c.id}')" style="color:var(--red);border-color:var(--red)">🗑</button>`;
+  $('vd-actions').innerHTML=acts;
+
+  // ── PHOTO GALLERY ──
+  let photoHTML='';
+  if(c.photos&&c.photos.length){
+    const ph=c.photos;
+    const safe=JSON.stringify(ph).replace(/'/g,"\\'");
+    const thumbs=ph.slice(1).map((p,i)=>`
+      <div class="vd-thumb" onclick="openLightboxArr(${safe.replace(/"/g,'&quot;')},${i+1})">
+        <img src="${p}" alt="Photo ${i+2}">
+        ${i===2&&ph.length>4?`<div class="vd-thumb-more">+${ph.length-4}</div>`:''}
+      </div>`).slice(0,3).join('');
+    photoHTML=`<div class="vd-photo-hero">
+      <div class="vd-photo-main" onclick="openLightboxArr(${safe.replace(/"/g,'&quot;')},0)">
+        <img src="${ph[0]}" alt="${esc(cname(c))}">
+        <div class="vd-photo-count">📷 ${ph.length}</div>
+      </div>
+      ${ph.length>1?`<div class="vd-photo-thumbs">${thumbs}</div>`:''}
+    </div>`;
+  }
+
+  // ── STAT PILLS ──
+  const vdBal=c.status==='Sold'?dealBalance(c):null;
+  const vdPaid=c.status==='Sold'?dealPaidTotal(c):null;
+  const vdPaidFull=c.status==='Sold'&&Number(c.salePrice||0)>0&&vdBal<=0;
+  const statPills=`<div class="vd-stats">
+    <div class="vd-stat"><label>Purchase Price</label><span>${fmt(c.price)}</span></div>
+    <div class="vd-stat"><label>Expenses</label><span>${fmt(expTotal(c))}</span></div>
+    <div class="vd-stat vd-stat-accent"><label>All-In Cost</label><span>${fmt(tc)}</span></div>
+    ${c.status==='Sold'?`
+      <div class="vd-stat ${pr>=0?'vd-stat-green':'vd-stat-red'}"><label>${pr>=0?'Net Profit':'Net Loss'}</label><span>${pr>=0?'+':''}${fmt(pr)}</span></div>
+    `:`<div class="vd-stat"><label>Days In Stock</label><span>${daysIn(c.purchaseDate)}</span></div>`}
+  </div>
+  ${c.status==='Sold'&&c.dealPayments&&c.dealPayments.length?`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;padding:10px 14px;background:${vdPaidFull?'#f0fdf4':'#fffbeb'};border:1px solid ${vdPaidFull?'#bbf7d0':'#fde68a'};border-radius:var(--r-sm)">
+      <span style="font-size:13px;font-weight:600;color:${vdPaidFull?'var(--green)':'var(--gold)'}">${vdPaidFull?'✓ Paid in Full':'⚠ Balance Due'}</span>
+      <span style="font-size:13px;color:var(--text-2)">Received: <strong>${fmt(vdPaid)}</strong></span>
+      ${!vdPaidFull?`<span style="font-size:13px;color:var(--red)">Remaining: <strong>${fmt(vdBal)}</strong></span>`:''}
+    </div>`:''}
+  `;
+
+  // ── VEHICLE INFO CARD ──
+  const infoCard=`<div class="card">
+    <div class="card-head"><div class="card-title">🚗 Vehicle Info</div></div>
+    <div class="vd-info-grid" style="padding:18px">
+      <div class="vd-info-item"><label>Year</label><span>${c.year||'—'}</span></div>
+      <div class="vd-info-item"><label>Make</label><span>${c.make||'—'}</span></div>
+      <div class="vd-info-item"><label>Model</label><span>${c.model||'—'}</span></div>
+      <div class="vd-info-item"><label>Color</label><span>${c.color||'—'}</span></div>
+      <div class="vd-info-item"><label>Mileage</label><span>${c.mileage?Number(c.mileage).toLocaleString()+' mi':'—'}</span></div>
+      <div class="vd-info-item"><label>VIN</label><span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.4px">${c.vin||'—'}</span></div>
+      <div class="vd-info-item"><label>Stock #</label><span>${c.stock||'—'}</span></div>
+      <div class="vd-info-item"><label>Days in Stock</label><span>${daysIn(c.purchaseDate)}</span></div>
+      <div class="vd-info-item"><label>Source</label><span>${c.source||'—'}${c.sourceName?' · '+c.sourceName:''}</span></div>
+      <div class="vd-info-item"><label>Purchase Date</label><span>${c.purchaseDate||'—'}</span></div>
+    </div>
+    ${c.notes?`<div style="padding:0 18px 18px"><div style="background:var(--bg);border-radius:var(--r-sm);padding:12px;font-size:13px;color:var(--text-2);line-height:1.5">${c.notes}</div></div>`:''}
+  </div>`;
+
+  // ── COST BREAKDOWN CARD ──
+  const expRows=(c.expenses||[]).map((e,i)=>{
+    const label=[e.vendor,e.desc].filter(Boolean).join(' — ')||e.category;
+    return`<div class="cost-row">
+      <span class="cost-label indent" style="flex-direction:column;align-items:flex-start;gap:1px">
+        <span style="display:flex;align-items:center;gap:6px">↳ <strong>${label}</strong>
+          <button class="exp-remove" onclick="delExpVD('${c.id}',${i})" title="Remove">✕</button>
+        </span>
+        <span style="font-size:11px;color:var(--text-3);padding-left:14px">${e.category}</span>
+      </span>
+      <span class="cost-amount">${fmt(e.amount)}</span>
+    </div>`;
+  }).join('');
+
+  const qaddVD=`<div class="qadd">
+    <div class="qadd-label">+ Add Expense</div>
+    <div class="qadd-row">
+      <select id="vd_qa_cat">${CATS.map(ct=>`<option>${ct}</option>`).join('')}</select>
+      <div class="ac-wrap" style="flex:1;min-width:120px">
+        <input id="vd_qa_vendor" type="text" placeholder="Vendor" autocomplete="off"
+          oninput="acShowExp('vd_qa_vendor','vd_qa_vendor_dd')"
+          onkeydown="acKey(event,'vd_qa_vendor','vd_qa_vendor_dd')"
+          onblur="acBlur('vd_qa_vendor_dd')"
+          onfocus="acShowExp('vd_qa_vendor','vd_qa_vendor_dd')">
+        <div id="vd_qa_vendor_dd" class="ac-list"></div>
+      </div>
+      <input id="vd_qa_desc" type="text" placeholder="Description">
+      <input id="vd_qa_amt" type="number" placeholder="$0.00" step="0.01" min="0" onkeydown="if(event.key==='Enter')vdQaExp('${c.id}')">
+      <button class="btn btn-dark btn-sm" onclick="vdQaExp('${c.id}')">Add</button>
+    </div>
+  </div>`;
+
+  const costCard=`<div class="card">
+    <div class="card-head"><div class="card-title">💰 Cost Breakdown</div><div class="card-sub">${(c.expenses||[]).length} expense${(c.expenses||[]).length!==1?'s':''}</div></div>
+    <div class="cost-list" style="padding:0 18px">
+      <div class="cost-row"><span class="cost-label" style="font-weight:600">Purchase Price</span><span class="cost-amount">${fmt(c.price)}</span></div>
+      ${c.packFee?`<div class="cost-row"><span class="cost-label indent" style="color:var(--text-2)">↳ Pack Fee</span><span class="cost-amount">${fmt(c.packFee)}</span></div>`:''}
+      ${expRows||'<div class="cost-row"><span class="cost-label" style="color:var(--text-3);font-style:italic">No expenses yet</span><span></span></div>'}
+      <div class="cost-row total-row"><span class="cost-label">All-In Cost</span><span class="cost-amount">${fmt(tc)}</span></div>
+      ${c.status==='Sold'?`<div class="cost-row"><span class="cost-label">Sale Price</span><span class="cost-amount">${fmt(c.salePrice)}</span></div>
+        <div class="cost-row ${pr>=0?'profit-row':'loss-row'}"><span>${pr>=0?'✅ Profit':'❌ Loss'}</span><span class="cost-amount">${pr>=0?'+':''}${fmt(pr)}</span></div>`:''}
+    </div>
+  </div>
+  ${qaddVD}`;
+
+  // ── DEAL SUMMARY CARD (sold only) ──
+  let dealCard='';
+  if(c.status==='Sold'){
+    const paid=dealPaidTotal(c), bal=dealBalance(c), paidFull=Number(c.salePrice||0)>0&&bal<=0;
+    const payRows=(c.dealPayments||[]).map((p,i)=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:11px;color:var(--text-3)">${p.date||''}</span>
+          <span style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:10px;border:1px solid var(--border)">${p.method||'Cash'}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:600;color:var(--green)">${fmt(p.amount)}</span>
+          <button class="exp-remove" onclick="vdRemovePayment('${c.id}',${i})" title="Remove">✕</button>
+        </div>
+      </div>`).join('');
+    dealCard=`<div class="card">
+      <div class="card-head">
+        <div class="card-title">🤝 Deal Summary</div>
+        ${paidFull?'<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#DCFCE7;color:#15803D">✓ Paid in Full</span>':Number(c.salePrice||0)>0&&paid>0?'<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FEF3C7;color:#B45309">Balance: '+fmt(bal)+'</span>':''}
+      </div>
+      <div class="vd-info-grid" style="padding:18px">
+        <div class="vd-info-item"><label>Buyer</label><span>${c.buyer||'—'}</span></div>
+        <div class="vd-info-item"><label>Sale Price</label><span>${fmt(c.salePrice)}</span></div>
+        <div class="vd-info-item"><label>Date Sold</label><span>${c.soldDate||'—'}</span></div>
+        <div class="vd-info-item"><label>Deal Type</label><span>${c.dealType||'—'}</span></div>
+        <div class="vd-info-item"><label>Payment Method</label><span>${c.dealPayment||'—'}</span></div>
+        ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&c.consignorName?`<div class="vd-info-item"><label>Consignor</label><span style="font-weight:500">${esc(c.consignorName)||esc(c.sourceName)||'—'}</span></div>`:''}
+        ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&c.consignorFeeValue?`<div class="vd-info-item"><label>Consignor Fee</label><span>${c.consignorFeeType==='pct'?(c.consignorFeeValue||0)+'% of sale':'Flat '+fmt(c.consignorFeeValue||0)} <span style="color:var(--red);font-weight:600">= ${fmt(consignorAmount(c))}</span></span></div>`:''}
+        <div class="vd-info-item"><label>Sold As</label><span>${c.vehicleSoldAs||'—'}</span></div>
+        ${c.dealCondition?`<div class="vd-info-item"><label>Condition</label><span>${c.dealCondition}</span></div>`:''}
+        ${c.buyerContact2?`<div class="vd-info-item"><label>Contact</label><span>${c.buyerContact2}</span></div>`:''}
+        ${c.buyerPhone?`<div class="vd-info-item"><label>Phone</label><span>${c.buyerPhone}</span></div>`:''}
+        ${c.buyerEmail?`<div class="vd-info-item"><label>Email</label><span style="font-size:12px">${c.buyerEmail}</span></div>`:''}
+        ${c.buyerLicense?`<div class="vd-info-item"><label>License #</label><span>${c.buyerLicense}</span></div>`:''}
+        ${c.buyerAddress?`<div class="vd-info-item" style="grid-column:1/-1"><label>Address</label><span>${c.buyerAddress}</span></div>`:''}
+      </div>
+      ${c.dealNotes?`<div style="padding:0 18px 18px"><div class="dp-notes">${c.dealNotes}</div></div>`:''}
+      <div style="padding:0 18px 18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:600;color:var(--text-1)">💵 Payments Received</div>
+        </div>
+        ${payRows||'<div style="font-size:13px;color:var(--text-3);font-style:italic;padding:6px 0 10px">No payments recorded yet</div>'}
+        ${(c.dealPayments&&c.dealPayments.length)?`
+          <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:13px;font-weight:600;border-top:2px solid var(--border)">
+            <span>Total Received</span><span style="color:var(--green)">${fmt(paid)}</span>
+          </div>
+          ${bal>0?`<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:13px;font-weight:600">
+            <span>Remaining Balance</span><span style="color:var(--red)">${fmt(bal)}</span>
+          </div>`:''}
+        `:''}
+        <div style="background:var(--bg);border-radius:var(--r-sm);padding:12px;margin-top:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-2);margin-bottom:8px">+ Add Payment</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:var(--text-3)">Date</label>
+              <input id="vd_pay_date" type="date" value="${new Date().toISOString().slice(0,10)}" style="padding:6px 8px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:12px;background:var(--surface)">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:var(--text-3)">Amount ($)</label>
+              <input id="vd_pay_amt" type="number" placeholder="0.00" step="0.01" min="0" style="padding:6px 8px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:12px;width:110px;background:var(--surface)" onkeydown="if(event.key==='Enter')vdAddPayment('${c.id}')">
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px">
+              <label style="font-size:11px;color:var(--text-3)">Method</label>
+              <select id="vd_pay_method" style="padding:6px 8px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:12px;background:var(--surface)">
+                <option>Check</option><option>Cash</option><option>Zelle</option><option>Wire</option><option>ACH</option><option>Other</option>
+              </select>
+            </div>
+            <button class="btn btn-dark btn-sm" onclick="vdAddPayment('${c.id}')">Add</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // ── LAYOUT ──
+  $('vd-body').innerHTML=`
+    ${photoHTML}
+    ${statPills}
+    <div class="vd-cols">
+      <div class="vd-col-left">${infoCard}</div>
+      <div class="vd-col-right">${costCard}${dealCard}</div>
+    </div>`;
+}
+
+function vdQaExp(id){
+  const cat=$('vd_qa_cat').value, amt=parseFloat($('vd_qa_amt').value);
+  if(!amt||amt<=0){$('vd_qa_amt').style.borderColor='var(--red)';setTimeout(()=>$('vd_qa_amt').style.borderColor='',1500);return;}
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  if(!c.expenses)c.expenses=[];
+  const vendor=($('vd_qa_vendor')||{}).value?.trim()||'';
+  const desc=($('vd_qa_desc')||{}).value?.trim()||'';
+  c.expenses.push({category:cat,vendor,desc,amount:amt});
+  save();renderVehiclePage();
+}
+
+function delExpVD(id,idx){
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  c.expenses.splice(idx,1);save();renderVehiclePage();
+}
+
+function vdAddPayment(id){
+  const amt=parseFloat(($('vd_pay_amt')||{}).value);
+  if(!amt||amt<=0){if($('vd_pay_amt')){$('vd_pay_amt').style.borderColor='var(--red)';setTimeout(()=>{if($('vd_pay_amt'))$('vd_pay_amt').style.borderColor='';},1500);}return;}
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  if(!c.dealPayments)c.dealPayments=[];
+  c.dealPayments.push({id:uid(),date:($('vd_pay_date')||{}).value||'',amount:amt,method:($('vd_pay_method')||{}).value||'Check'});
+  c.dealPaidFull=dealPaidTotal(c)>=Number(c.salePrice||0);
+  save();renderVehiclePage();
+}
+
+function vdRemovePayment(id,idx){
+  const c=cars.find(x=>x.id===id);if(!c||!c.dealPayments)return;
+  c.dealPayments.splice(idx,1);
+  c.dealPaidFull=dealPaidTotal(c)>=Number(c.salePrice||0);
+  save();renderVehiclePage();
 }
 
 function qaExp(id){
@@ -1431,10 +1923,102 @@ function delExp(id,idx){
   toast('Expense removed','info');
 }
 
+/* ── CONSIGNMENT HELPERS ── */
+function toggleConsignFields(){
+  const src=$('f_src').value;
+  const isConsign=src==='Consignment';
+  $('f_consign_row').style.display=isConsign?'':'none';
+  $('f_ptype_row').style.display=isConsign?'none':'';
+  $('f_srcname_label').textContent=isConsign?'Consignor Name':'Source Name';
+  $('f_srcname').placeholder=isConsign?'John Smith, ABC Autos...':'Manheim, ABC Motors...';
+  if(isConsign)updateConsignLabel();
+}
+function updateConsignLabel(){
+  const type=$('f_consign_type').value;
+  $('f_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
+  $('f_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+}
+function toggleDealConsignFields(){
+  const isConsign=$('d_pay').value==='Consignment';
+  $('d_consign_row').style.display=isConsign?'':'none';
+  $('d_consign_fee_row').style.display=isConsign?'':'none';
+  if(isConsign)updateDealConsignLabel();
+}
+function updateDealConsignLabel(){
+  const type=$('d_consign_type').value;
+  $('d_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
+  $('d_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+}
+function consignorAmount(c){
+  // Support both new (dealPayment) and legacy (source) consignment records
+  const isConsign=c.dealPayment==='Consignment'||c.source==='Consignment';
+  if(!isConsign||!c.consignorFeeValue)return 0;
+  if(c.consignorFeeType==='pct')return Number(c.salePrice||0)*Number(c.consignorFeeValue||0)/100;
+  return Number(c.consignorFeeValue||0);
+}
+
+/* ── DEAL PAYMENT HELPERS ── */
+let tempDealPayments=[];
+
+function initPaymentSection(existingPayments){
+  tempDealPayments=[...(existingPayments||[])];
+  $('dp_date').value=new Date().toISOString().slice(0,10);
+  $('dp_amt').value='';
+  renderPaymentSection();
+}
+
+function addDealPayment(){
+  const amt=parseFloat($('dp_amt').value);
+  if(!amt||amt<=0){$('dp_amt').style.borderColor='var(--red)';setTimeout(()=>$('dp_amt').style.borderColor='',1500);return;}
+  tempDealPayments.push({id:uid(),date:$('dp_date').value,amount:amt,method:$('dp_method').value});
+  $('dp_amt').value='';
+  renderPaymentSection();
+}
+
+function removeDealPayment(id){
+  tempDealPayments=tempDealPayments.filter(p=>p.id!==id);
+  renderPaymentSection();
+}
+
+function renderPaymentSection(){
+  const salePrice=parseFloat($('d_price').value)||0;
+  const totalRec=tempDealPayments.reduce((s,p)=>s+Number(p.amount||0),0);
+  const balance=salePrice-totalRec;
+  const paidFull=salePrice>0&&balance<=0;
+
+  // Badge
+  if($('dealBalanceBadge')){
+    $('dealBalanceBadge').textContent=paidFull?'✓ Paid in Full':salePrice>0?`Balance: ${fmt(balance)}`:'';
+    $('dealBalanceBadge').style.background=paidFull?'#DCFCE7':salePrice>0&&balance>0?'#FEF3C7':'transparent';
+    $('dealBalanceBadge').style.color=paidFull?'#15803D':'#B45309';
+  }
+
+  // Payment rows
+  $('dealPaymentsList').innerHTML=tempDealPayments.length?tempDealPayments.map(p=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--bg);border-radius:var(--r-sm);margin-bottom:5px;font-size:13px">
+      <span style="color:var(--text-3);min-width:95px">${p.date||'—'}</span>
+      <span style="color:var(--text-2)">${p.method}</span>
+      <span style="font-weight:700;font-family:'DM Mono',monospace;color:var(--green)">+${fmt(p.amount)}</span>
+      <button onclick="removeDealPayment('${p.id}')" style="background:none;border:none;color:var(--text-3);cursor:pointer;font-size:14px;padding:0 4px">✕</button>
+    </div>`).join(''):'<div style="color:var(--text-3);font-size:12px;font-style:italic;padding:4px 0">No payments recorded yet</div>';
+
+  // Summary bar
+  $('dealPaymentSummary').innerHTML=salePrice>0?`
+    <div class="profit-bar" style="margin-top:0">
+      <div class="profit-item"><label>Sale Price</label><span>${fmt(salePrice)}</span></div>
+      <div class="profit-item"><label>Received</label><span style="color:var(--green)">${fmt(totalRec)}</span></div>
+      <div class="profit-item ${paidFull?'':''}"><label>Balance</label><span style="color:${paidFull?'var(--green)':balance>0?'var(--red)':'var(--green)'}">${fmt(Math.abs(balance))}${paidFull?' ✓':''}</span></div>
+      <div class="profit-item"><label>Status</label><span style="font-size:12px;color:${paidFull?'var(--green)':'var(--text-2)'}">${paidFull?'Paid in Full':'Outstanding'}</span></div>
+    </div>`:'';
+}
+
 function openAddVehicle(){
   editId=null;$('vModalTitle').textContent='Add Vehicle';
-  ['f_vin','f_stock','f_year','f_make','f_model','f_color','f_mileage','f_srcname','f_price','f_notes'].forEach(id=>$(id).value='');
+  ['f_vin','f_stock','f_year','f_make','f_model','f_color','f_mileage','f_srcname','f_price','f_pack','f_notes'].forEach(id=>$(id).value='');
   $('f_src').value='Auction';$('f_date').value=new Date().toISOString().slice(0,10);
+  $('f_ptype').value='Cash';$('f_ptype_row').style.display='';
+  $('f_consign_row').style.display='none';
+  $('f_consign_fee').value='';$('f_consign_type').value='flat';
   $('expList').innerHTML='';$('vinPill').className='vin-pill';$('vinCtr').textContent='0/17';
   pendingPhotos=[];renderPhotoThumbs();
   addExpRow();openModal('mVehicle');
@@ -1447,7 +2031,12 @@ function openEditVehicle(id){
   $('f_make').value=c.make||'';$('f_model').value=c.model||'';$('f_color').value=c.color||'';
   $('f_mileage').value=c.mileage||'';$('f_src').value=c.source||'Auction';
   $('f_srcname').value=c.sourceName||'';$('f_date').value=c.purchaseDate||'';
-  $('f_price').value=c.price||'';$('f_notes').value=c.notes||'';
+  $('f_price').value=c.price||'';$('f_pack').value=c.packFee||'';
+  $('f_ptype').value=(c.purchaseType&&c.purchaseType!=='Consignment')?c.purchaseType:'Cash';
+  $('f_notes').value=c.notes||'';
+  $('f_consign_type').value=c.consignorFeeType||'flat';
+  $('f_consign_fee').value=c.consignorFeeValue||'';
+  toggleConsignFields();
   $('expList').innerHTML='';
   (c.expenses||[]).forEach(e=>addExpRow(e));
   if(!(c.expenses||[]).length)addExpRow();
@@ -1464,7 +2053,8 @@ function addExpRow(e={}){
       <input id="${vid}" type="text" placeholder="Vendor (e.g. Autozone)" value="${e.vendor||''}" autocomplete="off"
         oninput="acShowExp('${vid}','${vid}_dd')"
         onkeydown="acKey(event,'${vid}','${vid}_dd')"
-        onblur="acBlur('${vid}_dd')">
+        onblur="acBlur('${vid}_dd')"
+        onfocus="acShowExp('${vid}','${vid}_dd')">
       <div id="${vid}_dd" class="ac-list"></div>
     </div>
     <input type="text" placeholder="Description (e.g. Brake pads)" value="${e.desc||''}">
@@ -1503,8 +2093,12 @@ function saveVehicle(){
     color:$('f_color').value.trim(),
     mileage:$('f_mileage').value?posNum($('f_mileage').value):'',
     source:$('f_src').value,sourceName:$('f_srcname').value.trim(),
+    purchaseType:$('f_src').value==='Consignment'?'Consignment':$('f_ptype').value,
+    consignorFeeType:$('f_consign_type').value,
+    consignorFeeValue:$('f_src').value==='Consignment'?(parseFloat($('f_consign_fee').value)||0):0,
     purchaseDate:$('f_date').value,
     price,
+    packFee:parseFloat($('f_pack').value)||0,
     notes:$('f_notes').value.trim(),
     expenses:getExps(),
     photos:[...pendingPhotos],
@@ -1516,7 +2110,7 @@ function saveVehicle(){
     d.id=editId;
     if(old.status==='Sold'){
       d.status='Sold';
-      Object.assign(d,{salePrice:old.salePrice,buyer:old.buyer,buyerContact:old.buyerContact,soldDate:old.soldDate,buyerPhone:old.buyerPhone,buyerEmail:old.buyerEmail,buyerContact2:old.buyerContact2,buyerLicense:old.buyerLicense,buyerAddress:old.buyerAddress,dealPayment:old.dealPayment,dealType:old.dealType,dealNotes:old.dealNotes});
+      Object.assign(d,{salePrice:old.salePrice,buyer:old.buyer,buyerContact:old.buyerContact,soldDate:old.soldDate,buyerPhone:old.buyerPhone,buyerEmail:old.buyerEmail,buyerContact2:old.buyerContact2,buyerLicense:old.buyerLicense,buyerAddress:old.buyerAddress,dealPayment:old.dealPayment,dealType:old.dealType,dealNotes:old.dealNotes,consignorName:old.consignorName,consignorFeeType:old.consignorFeeType,consignorFeeValue:old.consignorFeeValue,dealPayments:old.dealPayments,dealPaidFull:old.dealPaidFull,vehicleSoldAs:old.vehicleSoldAs,dealCondition:old.dealCondition});
     }
     cars[idx]=d;
     toast('Vehicle updated ✓');
@@ -1614,6 +2208,10 @@ function openDeal(preId){
   closeBuyerDD();
   $('d_date').value=new Date().toISOString().slice(0,10);
   $('d_pay').value='Check';$('d_type').value='Wholesale';$('profitBar').innerHTML='';
+  $('d_consign_row').style.display='none';$('d_consign_fee_row').style.display='none';
+  if($('d_consign_name'))$('d_consign_name').value='';
+  if($('d_consign_fee'))$('d_consign_fee').value='';
+  if($('d_consign_type'))$('d_consign_type').value='flat';
   document.querySelectorAll('.cond-btn').forEach(b=>b.classList.remove('active'));
   setUsed('USED');
   // reset modal title
@@ -1621,6 +2219,7 @@ function openDeal(preId){
   $('dealModalSub').textContent='Select a vehicle → set price → enter buyer info';
   $('dealVehicleSection').style.display='';
   if($('editVehicleFromDeal'))$('editVehicleFromDeal').style.display='none';
+  initPaymentSection([]);
   closeDP();openModal('mDeal');if(preId)calcProfit();
 }
 
@@ -1637,6 +2236,11 @@ function openEditDeal(id){
   $('d_date').value=c.soldDate||new Date().toISOString().slice(0,10);
   $('d_pay').value=c.dealPayment||'Check';
   $('d_type').value=c.dealType||'Wholesale';
+  // Restore consignor fields if payment method is Consignment
+  if($('d_consign_name'))$('d_consign_name').value=c.consignorName||'';
+  if($('d_consign_type'))$('d_consign_type').value=c.consignorFeeType||'flat';
+  if($('d_consign_fee'))$('d_consign_fee').value=c.consignorFeeValue||'';
+  toggleDealConsignFields();
   $('d_buyer').value=c.buyer||'';
   if($('buyerSearch'))$('buyerSearch').value=c.buyer||'';
   $('d_contact').value=c.buyerContact2||'';
@@ -1653,6 +2257,7 @@ function openEditDeal(id){
     if(btn)btn.classList.add('active');
   }
   closeBuyerDD();
+  initPaymentSection(c.dealPayments||[]);
   // show Edit Vehicle Info button
   if($('editVehicleFromDeal'))$('editVehicleFromDeal').style.display='';
   calcProfit();
@@ -1710,9 +2315,14 @@ function confirmDeal(){
     buyerLicense:$('d_lic').value.trim(),
     buyerAddress:$('d_addr').value.trim(),
     dealPayment:$('d_pay').value,dealType:$('d_type').value,
+    consignorName:$('d_pay').value==='Consignment'?($('d_consign_name').value.trim()||''):'',
+    consignorFeeType:$('d_pay').value==='Consignment'?$('d_consign_type').value:'',
+    consignorFeeValue:$('d_pay').value==='Consignment'?(parseFloat($('d_consign_fee').value)||0):0,
     dealNotes:$('d_notes').value.trim(),
     vehicleSoldAs:$('usedBtn')?.classList.contains('active')?'USED':'NEW',
-    dealCondition:document.querySelector('.cond-btn.active')?.dataset.cond||''
+    dealCondition:document.querySelector('.cond-btn.active')?.dataset.cond||'',
+    dealPayments:[...tempDealPayments],
+    dealPaidFull:tempDealPayments.reduce((s,p)=>s+Number(p.amount||0),0)>=sp
   });
   save();closeModal('mDeal');renderAll();
   toast(`Deal recorded! ${cname(c)} — ${pr>=0?'Profit':'Loss'}: ${fmt(Math.abs(pr))}`,pr>=0?'ok':'info');
@@ -1749,86 +2359,110 @@ function closeVinScanner(){
   scannedVin = null;
 }
 
+function vinClean(raw){
+  const s=raw.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
+  if(s.length===17)return s;
+  const m=s.match(/[A-HJ-NPR-Z0-9]{17}/);
+  return m?m[0]:null;
+}
+
+async function tryBarcodeDetector(source){
+  if(!('BarcodeDetector' in window))return null;
+  try{
+    const det=new BarcodeDetector({formats:['code_39','code_128','pdf417','data_matrix','qr_code','aztec']});
+    const codes=await det.detect(source);
+    for(const b of codes){const v=vinClean(b.rawValue);if(v)return v;}
+  }catch(e){console.log('BarcodeDetector:',e);}
+  return null;
+}
+
+async function tryZXing(canvas){
+  if(!window.ZXing)return null;
+  try{
+    const{MultiFormatReader,BarcodeFormat,DecodeHintType,RGBLuminanceSource,BinaryBitmap,HybridBinarizer}=ZXing;
+    const hints=new Map([[DecodeHintType.POSSIBLE_FORMATS,[
+      BarcodeFormat.CODE_39,BarcodeFormat.CODE_128,
+      BarcodeFormat.PDF_417,BarcodeFormat.DATA_MATRIX
+    ]],[DecodeHintType.TRY_HARDER,true]]);
+    const reader=new MultiFormatReader();
+    reader.setHints(hints);
+    const ctx=canvas.getContext('2d');
+    const data=ctx.getImageData(0,0,canvas.width,canvas.height);
+    const lum=new RGBLuminanceSource(data.data,canvas.width,canvas.height);
+    const bmp=new BinaryBitmap(new HybridBinarizer(lum));
+    const result=reader.decode(bmp);
+    if(result){const v=vinClean(result.getText());if(v)return v;}
+  }catch(e){/* not found */}
+  return null;
+}
+
 async function processVinPhoto(input){
-  const file = input.files[0];
-  if(!file) return;
+  const file=input.files[0];
+  if(!file)return;
 
   // Show preview
-  const previewReader = new FileReader();
-  previewReader.onload = e => {
-    $('vinPreviewImg').src = e.target.result;
-    $('vinPreviewImg').classList.add('show');
-  };
-  previewReader.readAsDataURL(file);
+  const reader=new FileReader();
+  reader.onload=e=>{$('vinPreviewImg').src=e.target.result;$('vinPreviewImg').classList.add('show');};
+  reader.readAsDataURL(file);
 
-  // Reset state
   $('vinScanErr').classList.remove('show');
   $('vinScanResult').classList.remove('show');
   $('vinUseBtn').style.display='none';
-  $('vinScanStatus').textContent = '🔍 Scanning for VIN...';
+  $('vinScanStatus').textContent='🔍 Scanning barcode...';
   $('vinScanStatus').classList.add('show');
 
-  // Load image onto canvas
-  const img = new Image();
-  const objUrl = URL.createObjectURL(file);
-  img.src = objUrl;
-  await new Promise(res=>{ img.onload=res; img.onerror=res; });
+  const objUrl=URL.createObjectURL(file);
+  const img=new Image();
+  img.src=objUrl;
+  await new Promise(res=>{img.onload=res;img.onerror=res;});
 
-  let foundVin = null;
+  let foundVin=null;
 
-  // Method 1: Native BarcodeDetector (works on modern iOS Safari + Chrome Android)
-  if('BarcodeDetector' in window){
-    try {
-      const detector = new BarcodeDetector({ formats: ['code_39','code_128','data_matrix','pdf417','qr_code'] });
-      const barcodes = await detector.detect(img);
-      for(const b of barcodes){
-        const clean = b.rawValue.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
-        if(clean.length === 17){ foundVin = clean; break; }
-        // Sometimes VIN is embedded in longer string
-        const match = clean.match(/[A-HJ-NPR-Z0-9]{17}/);
-        if(match){ foundVin = match[0]; break; }
-      }
-    } catch(e){ console.log('BarcodeDetector error:', e); }
+  // Pass 1 — BarcodeDetector on raw image (fast, works on Chrome Android + iOS 17+)
+  if(!foundVin){
+    $('vinScanStatus').textContent='🔍 Pass 1/3 — native scan...';
+    foundVin=await tryBarcodeDetector(img);
   }
 
-  // Method 2: Canvas pixel scan — draw image and try ZXing-style decode via canvas
+  // Pass 2 — multi-scale canvas + BarcodeDetector & ZXing
   if(!foundVin){
-    try {
-      const canvas = document.createElement('canvas');
-      // Try multiple scales for better detection
-      for(const scale of [1, 0.5, 2]){
-        canvas.width = Math.min(img.width * scale, 1920);
-        canvas.height = Math.min(img.height * scale, 1080);
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    for(const scale of [1,0.5,2,0.25]){
+      $('vinScanStatus').textContent=`🔍 Pass 2/3 — scale ${scale}x...`;
+      const c=document.createElement('canvas');
+      c.width=Math.round(Math.min(img.naturalWidth||img.width,2400)*scale);
+      c.height=Math.round(Math.min(img.naturalHeight||img.height,1800)*scale);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      foundVin=await tryBarcodeDetector(c)||await tryZXing(c);
+      if(foundVin)break;
+    }
+  }
 
-        if('BarcodeDetector' in window){
-          const detector = new BarcodeDetector({ formats: ['code_39','code_128','data_matrix','pdf417','qr_code','aztec'] });
-          const barcodes = await detector.detect(canvas);
-          for(const b of barcodes){
-            const clean = b.rawValue.replace(/[^A-HJ-NPR-Z0-9]/gi,'').toUpperCase();
-            if(clean.length === 17){ foundVin = clean; break; }
-            const match = clean.match(/[A-HJ-NPR-Z0-9]{17}/);
-            if(match){ foundVin = match[0]; break; }
-          }
-          if(foundVin) break;
-        }
-      }
-    } catch(e){ console.log('Canvas scan error:', e); }
+  // Pass 3 — try grayscale + contrast boost then ZXing
+  if(!foundVin){
+    $('vinScanStatus').textContent='🔍 Pass 3/3 — enhanced contrast...';
+    try{
+      const c=document.createElement('canvas');
+      c.width=Math.min(img.naturalWidth||img.width,1920);
+      c.height=Math.min(img.naturalHeight||img.height,1080);
+      const ctx=c.getContext('2d');
+      ctx.filter='grayscale(1) contrast(2)';
+      ctx.drawImage(img,0,0,c.width,c.height);
+      ctx.filter='none';
+      foundVin=await tryBarcodeDetector(c)||await tryZXing(c);
+    }catch(e){}
   }
 
   URL.revokeObjectURL(objUrl);
   $('vinScanStatus').classList.remove('show');
 
   if(foundVin){
-    scannedVin = foundVin;
-    $('vinScanResult').textContent = foundVin;
+    scannedVin=foundVin;
+    $('vinScanResult').textContent=foundVin;
     $('vinScanResult').classList.add('show');
-    $('vinUseBtn').style.display = 'block';
-  } else {
-    // Show manual entry fallback
-    $('vinScanErr').innerHTML = `
-      <div style="margin-bottom:10px">Couldn't auto-read the VIN. Try a clearer photo of the barcode, or enter it manually below:</div>
+    $('vinUseBtn').style.display='block';
+  }else{
+    $('vinScanErr').innerHTML=`
+      <div style="margin-bottom:10px">⚠️ Couldn't read the barcode. Tips: get closer to the barcode, ensure good lighting, hold the phone steady. Or type the VIN manually:</div>
       <div style="display:flex;gap:8px">
         <input id="vinManualInput" placeholder="Type VIN here..." maxlength="17"
           style="flex:1;padding:9px 12px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.5px;text-transform:uppercase;outline:none"
@@ -1868,18 +2502,39 @@ function getKnownVendors(){
   return Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([v])=>v);
 }
 
+function getKnownSources(){
+  const all=cars.map(c=>c.sourceName||'').filter(Boolean);
+  const freq={};
+  all.forEach(v=>{freq[v]=(freq[v]||0)+1;});
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1]).map(([v])=>v);
+}
+
+function acShowSrc(inputId, listId){
+  const input=$(inputId);
+  const list=$(listId);
+  if(!input||!list)return;
+  const val=input.value.trim().toLowerCase();
+  const sources=getKnownSources().filter(s=>!val||s.toLowerCase().includes(val));
+  if(!sources.length){list.classList.remove('open');return;}
+  acFocusIdx=-1;
+  list.innerHTML=sources.slice(0,8).map((s,i)=>`
+    <div class="ac-item" data-idx="${i}" onmousedown="acPick('${inputId}','${listId}','${s.replace(/'/g,"\\'")}')">
+      <span class="ac-item-name">${val?s.replace(new RegExp('('+val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>'):s}</span>
+    </div>`).join('');
+  list.classList.add('open');
+}
+
 let acFocusIdx=-1;
 
 function acShow(inputId, listId){
   const val=$(inputId).value.trim().toLowerCase();
   const list=$(listId);
-  if(!val){list.classList.remove('open');return;}
-  const vendors=getKnownVendors().filter(v=>v.toLowerCase().includes(val));
+  const vendors=getKnownVendors().filter(v=>!val||v.toLowerCase().includes(val));
   if(!vendors.length){list.classList.remove('open');return;}
   acFocusIdx=-1;
   list.innerHTML=vendors.slice(0,8).map((v,i)=>`
     <div class="ac-item" data-idx="${i}" onmousedown="acPick('${inputId}','${listId}','${v.replace(/'/g,"\\'")}')">
-      <span class="ac-item-name">${v.replace(new RegExp(`(${val})`, 'gi'),'<strong>$1</strong>')}</span>
+      <span class="ac-item-name">${val?v.replace(new RegExp('('+val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>'):v}</span>
     </div>`).join('');
   list.classList.add('open');
 }
@@ -1889,13 +2544,12 @@ function acShowExp(inputId, listId){
   const list=document.getElementById(listId);
   if(!input||!list)return;
   const val=input.value.trim().toLowerCase();
-  if(!val){list.classList.remove('open');return;}
-  const vendors=getKnownVendors().filter(v=>v.toLowerCase().includes(val));
+  const vendors=getKnownVendors().filter(v=>!val||v.toLowerCase().includes(val));
   if(!vendors.length){list.classList.remove('open');return;}
   acFocusIdx=-1;
   list.innerHTML=vendors.slice(0,8).map((v,i)=>`
     <div class="ac-item" data-idx="${i}" onmousedown="acPickExp('${inputId}','${listId}','${v.replace(/'/g,"\\'")}')">
-      <span class="ac-item-name">${v.replace(new RegExp(`(${val})`, 'gi'),'<strong>$1</strong>')}</span>
+      <span class="ac-item-name">${val?v.replace(new RegExp('('+val.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<strong>$1</strong>'):v}</span>
     </div>`).join('');
   list.classList.add('open');
 }
@@ -2203,7 +2857,7 @@ function aeVehicleCard(c){
               oninput="acShowExp('ae_ven_${c.id}','ae_ven_${c.id}_dd')"
               onkeydown="acKey(event,'ae_ven_${c.id}','ae_ven_${c.id}_dd')"
               onblur="acBlur('ae_ven_${c.id}_dd')"
-              onfocus="this.style.borderColor='var(--accent)'" >
+              onfocus="this.style.borderColor='var(--accent)';acShowExp('ae_ven_${c.id}','ae_ven_${c.id}_dd')" >
             <div id="ae_ven_${c.id}_dd" class="ac-list"></div>
           </div>
           <input id="ae_desc_${c.id}" type="text" placeholder="Description"
@@ -2252,6 +2906,112 @@ function aeClear(){
 function renderAddExp(){
   // Reset on nav
   aeClear();
+}
+
+/* ── VENDORS / 1099 ── */
+let vendorYear='all';
+
+function getVendorYears(){
+  const years=new Set();
+  cars.forEach(c=>{
+    const d=c.soldDate||c.purchaseDate||'';
+    if(d)years.add(d.slice(0,4));
+    (c.expenses||[]).forEach(e=>{if(e.date)years.add(e.date.slice(0,4));});
+  });
+  bizExps.forEach(e=>{if(e.date)years.add(e.date.slice(0,4));});
+  recurringExps.forEach(r=>{if(r.date)years.add(r.date.slice(0,4));});
+  return [...years].filter(Boolean).sort().reverse();
+}
+
+function buildVendorData(year){
+  const byVendor={};
+  function add(vendor,amount,type){
+    vendor=(vendor||'').trim();
+    if(!vendor)return;
+    if(!byVendor[vendor])byVendor[vendor]={vendor,vehicleTotal:0,bizTotal:0,count:0};
+    if(type==='vehicle')byVendor[vendor].vehicleTotal+=Number(amount||0);
+    else byVendor[vendor].bizTotal+=Number(amount||0);
+    byVendor[vendor].count++;
+  }
+  // Vehicle expenses — use vehicle's purchase/sold date for year check
+  cars.forEach(c=>{
+    const carYear=(c.soldDate||c.purchaseDate||'').slice(0,4);
+    if(year!=='all'&&carYear&&carYear!==year)return;
+    (c.expenses||[]).forEach(e=>add(e.vendor,e.amount,'vehicle'));
+  });
+  // Business expenses (have their own dates)
+  bizExps.forEach(e=>{
+    if(year!=='all'&&e.date&&e.date.slice(0,4)!==year)return;
+    add(e.vendor,e.amount,'biz');
+  });
+  // Recurring expenses
+  recurringExps.forEach(r=>{
+    if(year!=='all'&&r.date&&r.date.slice(0,4)!==year)return;
+    add(r.vendor,r.amount,'biz');
+  });
+  return Object.values(byVendor)
+    .map(v=>({...v,total:v.vehicleTotal+v.bizTotal}))
+    .sort((a,b)=>b.total-a.total);
+}
+
+function renderVendors(){
+  // Year pills
+  const years=getVendorYears();
+  $('vendorYearPills').innerHTML=[{label:'All Time',val:'all'},...years.map(y=>({label:y,val:y}))].map(y=>`
+    <button class="month-pill${vendorYear===y.val?' active':''}" onclick="vendorYear='${y.val}';renderVendors()">${y.label}</button>`).join('');
+
+  const q=($('vendorSearch')?.value||'').toLowerCase();
+  let data=buildVendorData(vendorYear);
+  if(q)data=data.filter(v=>v.vendor.toLowerCase().includes(q));
+
+  const totalVendors=data.length;
+  const totalPaid=data.reduce((s,v)=>s+v.total,0);
+  const over600=data.filter(v=>v.total>=600).length;
+  const over600Total=data.filter(v=>v.total>=600).reduce((s,v)=>s+v.total,0);
+
+  // Stats
+  $('vendorStats').innerHTML=`
+    <div class="vd-stat"><label>Total Vendors</label><span>${totalVendors}</span></div>
+    <div class="vd-stat vd-stat-accent"><label>Total Paid</label><span>${fmt(totalPaid)}</span></div>
+    <div class="vd-stat" style="border-color:#F59E0B;background:#FFFBEB"><label style="color:#92400E">1099 Vendors (≥$600)</label><span style="color:#B45309">${over600}</span></div>
+    <div class="vd-stat" style="border-color:#F59E0B;background:#FFFBEB"><label style="color:#92400E">1099 Amount</label><span style="color:#B45309">${fmt(over600Total)}</span></div>`;
+
+  // Table
+  if(!data.length){
+    $('vendorBody').innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-icon">📋</div><div class="empty-title">No vendor data${vendorYear!=='all'?' for '+vendorYear:''}</div><div class="empty-sub">Expenses with vendor names will appear here</div></div></td></tr>`;
+    return;
+  }
+  $('vendorBody').innerHTML=data.map((v,i)=>{
+    const needs1099=v.total>=600;
+    return`<tr style="${needs1099?'background:#FFFBEB':''}">
+      <td><strong style="color:var(--text)">${esc(v.vendor)}</strong></td>
+      <td style="text-align:right;color:var(--text-2);font-family:'DM Mono',monospace;font-size:13px">${v.vehicleTotal>0?fmt(v.vehicleTotal):'—'}</td>
+      <td style="text-align:right;color:var(--text-2);font-family:'DM Mono',monospace;font-size:13px">${v.bizTotal>0?fmt(v.bizTotal):'—'}</td>
+      <td style="text-align:right;color:var(--text-3);font-size:13px">${v.count}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-weight:700;color:var(--text)">${fmt(v.total)}</td>
+      <td>${needs1099?'<span class="badge" style="background:#FEF3C7;color:#B45309;border:1px solid #F59E0B">⚠ 1099</span>':'<span style="color:var(--text-3);font-size:12px">—</span>'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportVendorCSV(){
+  const data=buildVendorData(vendorYear);
+  const rows=[['Vendor','Vehicle Expenses','Business Expenses','Payment Count','Total Paid','1099 Required (>=600)']];
+  data.forEach(v=>rows.push([
+    v.vendor,
+    v.vehicleTotal.toFixed(2),
+    v.bizTotal.toFixed(2),
+    v.count,
+    v.total.toFixed(2),
+    v.total>=600?'YES':'NO'
+  ]));
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`vendor-payments-${vendorYear==='all'?'all-time':vendorYear}.csv`;
+  a.click();
+  toast('CSV exported ✓');
 }
 
 function renderBizExp(){
@@ -2464,30 +3224,64 @@ function renderDash(){
     <div class="onboard-actions"><button class="btn btn-gold" onclick="openAddVehicle()">+ Add First Vehicle</button></div>
   </div>`:'';
 
+  const outstandingBal=sold.reduce((s,c)=>s+Math.max(0,dealBalance(c)),0);
+  const hasOutstanding=sold.some(c=>c.dealPayments&&c.dealPayments.length&&dealBalance(c)>0);
   $('dashStats').innerHTML=`
-    <div class="stat-card" style="--stat-accent:var(--blue)"><div class="stat-icon" style="background:var(--blue-bg)">🚗</div><div class="stat-label">In Stock</div><div class="stat-value">${act.length}</div><div class="stat-meta">vehicles active</div></div>
-    <div class="stat-card" style="--stat-accent:var(--gold)"><div class="stat-icon" style="background:var(--gold-bg)">💼</div><div class="stat-label">Inventory Value</div><div class="stat-value">${fmtShort(invVal)}</div><div class="stat-meta">total all-in cost</div></div>
-    <div class="stat-card" style="--stat-accent:var(--green)"><div class="stat-icon" style="background:var(--green-bg)">💰</div><div class="stat-label">Total Revenue</div><div class="stat-value">${fmtShort(totSales)}</div><div class="stat-meta">${sold.length} vehicle${sold.length!==1?'s':''} sold</div></div>
-    <div class="stat-card" style="--stat-accent:${netProfit>=0?'var(--green)':'var(--red)'}"><div class="stat-icon" style="background:${netProfit>=0?'var(--green-bg)':'var(--red-bg)'}">📈</div><div class="stat-label">Net Profit</div><div class="stat-value" style="color:${netProfit>=0?'var(--green)':'var(--red)'}">${netProfit>=0?'+':''}${fmtShort(netProfit)}</div><div class="stat-meta">${avgDays!==null?`avg ${avgDays}d to sell`:'all time'}</div></div>`;
+    <div class="stat-card" style="--stat-accent:var(--blue);cursor:pointer" onclick="nav('inventory',$('nb-inventory'))"><div class="stat-icon" style="background:var(--blue-bg)">🚗</div><div class="stat-label">In Stock</div><div class="stat-value">${act.length}</div><div class="stat-meta">vehicles active</div></div>
+    <div class="stat-card" style="--stat-accent:var(--gold);cursor:pointer" onclick="nav('inventory',$('nb-inventory'))"><div class="stat-icon" style="background:var(--gold-bg)">💼</div><div class="stat-label">Inventory Value</div><div class="stat-value">${fmtShort(invVal)}</div><div class="stat-meta">total all-in cost</div></div>
+    <div class="stat-card" style="--stat-accent:var(--green);cursor:pointer" onclick="nav('sold',$('nb-sold'))"><div class="stat-icon" style="background:var(--green-bg)">💰</div><div class="stat-label">Total Revenue</div><div class="stat-value">${fmtShort(totSales)}</div><div class="stat-meta">${sold.length} vehicle${sold.length!==1?'s':''} sold</div></div>
+    <div class="stat-card" style="--stat-accent:${netProfit>=0?'var(--green)':'var(--red)'};cursor:pointer" onclick="nav('pl',$('nb-pl'))"><div class="stat-icon" style="background:${netProfit>=0?'var(--green-bg)':'var(--red-bg)'}">📈</div><div class="stat-label">Net Profit</div><div class="stat-value" style="color:${netProfit>=0?'var(--green)':'var(--red)'}">${netProfit>=0?'+':''}${fmtShort(netProfit)}</div><div class="stat-meta">${hasOutstanding?`<span style="color:var(--gold);font-weight:600">${fmt(outstandingBal)} outstanding</span>`:avgDays!==null?`avg ${avgDays}d to sell`:'all time'}</div></div>`;
 
-  $('dashInv').innerHTML=act.slice(0,6).map(c=>`<tr class="clickable" onclick="openDP('${c.id}')"><td><strong>${esc(cname(c))}</strong></td><td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td><td><strong>${fmt(allIn(c))}</strong></td><td>${daysIn(c.purchaseDate,true)}</td></tr>`).join('')||`<tr><td colspan="4"><div class="empty"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles yet</div><div class="empty-sub">Add your first vehicle to get started</div><button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button></div></td></tr>`;
+  $('dashInv').innerHTML=act.slice(0,6).map(c=>`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td><strong>${esc(cname(c))}</strong></td><td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td><td><strong>${fmt(allIn(c))}</strong></td><td>${daysIn(c.purchaseDate,true)}</td></tr>`).join('')||`<tr><td colspan="4"><div class="empty"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles yet</div><div class="empty-sub">Add your first vehicle to get started</div><button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button></div></td></tr>`;
 
   // Sort by most recent sale date
   const recentSold=[...sold].sort((a,b)=>new Date(b.soldDate||0)-new Date(a.soldDate||0));
-  $('dashSold').innerHTML=recentSold.slice(0,6).map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openDP('${c.id}')"><td><strong>${esc(cname(c))}</strong></td><td style="font-size:12.5px">${esc(c.buyer)||'—'}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmtShort(pr)}</span></td></tr>`;}).join('')||`<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-3);font-size:13px">No deals recorded yet</td></tr>`;
+  $('dashSold').innerHTML=recentSold.slice(0,6).map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td><strong>${esc(cname(c))}</strong></td><td style="font-size:12.5px">${esc(c.buyer)||'—'}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmtShort(pr)}</span></td></tr>`;}).join('')||`<tr><td colspan="4" style="text-align:center;padding:32px;color:var(--text-3);font-size:13px">No deals recorded yet</td></tr>`;
 }
 
+function invChipFilter(val){$('invChipSel').value=val;renderInventory();}
 function renderInventory(){
   const q=($('invSearch')?.value||'').toLowerCase();
   const f=$('invFilter')?.value||'';
-  let list=cars.filter(c=>c.status!=='Sold');
+  const chip=$('invChipSel')?.value||'all';
+  const sort=$('invSort')?.value||'newest';
+  const allActive=cars.filter(c=>c.status!=='Sold');
+  // Build counts for chips
+  const cntAll=allActive.length;
+  const cntConsign=allActive.filter(c=>c.source==='Consignment'||c.purchaseType==='Consignment').length;
+  const cntCash=allActive.filter(c=>c.purchaseType==='Cash'||(c.source!=='Consignment'&&!c.purchaseType)).length;
+  const cntFloor=allActive.filter(c=>c.purchaseType==='Floored').length;
+  if($('invChips')){
+    $('invChips').innerHTML=`
+      <button class="inv-chip${chip==='all'?' active':''}" onclick="invChipFilter('all')">All <span class="chip-ct">${cntAll}</span></button>
+      <button class="inv-chip${chip==='cash'?' active':''}" onclick="invChipFilter('cash')" style="${chip!=='cash'?'border-color:#16a34a;color:#15803d':''}">💵 Cash <span class="chip-ct">${cntCash}</span></button>
+      <button class="inv-chip${chip==='consign'?' active':''}" onclick="invChipFilter('consign')" style="${chip!=='consign'?'border-color:#0369a1;color:#0369a1':''}">🤝 Consignment <span class="chip-ct">${cntConsign}</span></button>
+      ${cntFloor>0?`<button class="inv-chip${chip==='floor'?' active':''}" onclick="invChipFilter('floor')" style="${chip!=='floor'?'border-color:#b45309;color:#b45309':''}">📋 Floored <span class="chip-ct">${cntFloor}</span></button>`:''}
+    `;
+  }
+  // Hidden input to track chip selection across renders
+  if(!$('invChipSel')){const h=document.createElement('input');h.type='hidden';h.id='invChipSel';h.value=chip;document.body.appendChild(h);}
+  let list=[...allActive];
+  // Apply chip filter
+  if(chip==='cash')list=list.filter(c=>c.purchaseType==='Cash'||(c.source!=='Consignment'&&!c.purchaseType));
+  else if(chip==='consign')list=list.filter(c=>c.source==='Consignment'||c.purchaseType==='Consignment');
+  else if(chip==='floor')list=list.filter(c=>c.purchaseType==='Floored');
+  // Apply source dropdown filter
   if(f)list=list.filter(c=>c.source===f);
-  if(q)list=list.filter(c=>[c.vin,c.make,c.model,c.stock,c.color,c.sourceName].join(' ').toLowerCase().includes(q));
-  $('invSub').textContent=`${list.length} vehicle${list.length!==1?'s':''} in stock`;
+  if(q)list=list.filter(c=>[c.vin,c.make,c.model,c.stock,c.color,c.sourceName,c.year,c.source].join(' ').toLowerCase().includes(q));
+  // Sort
+  if(sort==='newest')list.sort((a,b)=>new Date(b.purchaseDate||0)-new Date(a.purchaseDate||0));
+  else if(sort==='oldest')list.sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0));
+  else if(sort==='days')list.sort((a,b)=>new Date(a.purchaseDate||0)-new Date(b.purchaseDate||0));
+  else if(sort==='price_desc')list.sort((a,b)=>allIn(b)-allIn(a));
+  else if(sort==='price_asc')list.sort((a,b)=>allIn(a)-allIn(b));
+  else if(sort==='az')list.sort((a,b)=>cname(a).localeCompare(cname(b)));
+  const totalValue=list.reduce((s,c)=>s+allIn(c),0);
+  $('invSub').textContent=`${list.length} vehicle${list.length!==1?'s':''} in stock${list.length?'  ·  All-In: '+fmt(totalValue):''}`;
   $('invGrid').innerHTML=list.map(c=>`
-    <div class="vcard" onclick="openDP('${c.id}')">
+    <div class="vcard" onclick="openVehiclePage('${c.id}','inventory')">
       ${c.photos&&c.photos.length?`<img class="vcard-photo" src="${c.photos[0]}" alt="${esc(cname(c))}" onclick="event.stopPropagation();openLightboxArr(${JSON.stringify(c.photos).replace(/"/g,'&quot;')},0)">`:`<div class="vcard-no-photo">🚗</div>`}
-      <div class="vcard-top"><span class="vcard-stock">${esc(c.stock)||'—'}</span><span class="badge ${c.source==='Auction'?'b-auction':'b-dealer'}">${esc(c.source)}</span></div>
+      <div class="vcard-top"><span class="vcard-stock">${esc(c.stock)||'—'}</span><span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end"><span class="badge" style="${srcBadgeStyle(c.source)}">${esc(c.source)||'—'}${c.source==='Consignment'&&c.sourceName?'<span style="font-weight:400;opacity:.7"> · '+esc(c.sourceName)+'</span>':''}</span>${c.purchaseType==='Floored'?'<span class="badge" style="background:#fef3c7;color:#b45309">📋 Floored</span>':c.source!=='Consignment'&&(!c.purchaseType||c.purchaseType==='Cash')?'<span class="badge" style="background:#dcfce7;color:#15803d">💵 Cash</span>':''}</span></div>
       <div class="vcard-name">${cname(c)}</div>
       <div class="vcard-vin">${c.vin||'No VIN'}${c.color?' · '+c.color:''}${c.mileage?' · '+Number(c.mileage).toLocaleString()+' mi':''}</div>
       <div class="vcard-grid">
@@ -2496,9 +3290,10 @@ function renderInventory(){
         <div class="vcard-item"><label>All-In Cost</label><span class="gold">${fmt(allIn(c))}</span></div>
         <div class="vcard-item"><label>Days In</label><span>${daysIn(c.purchaseDate,true)}</span></div>
       </div>
+      ${c.sourceName&&c.source!=='Consignment'?`<div style="font-size:11px;color:var(--text-3);margin-bottom:10px">📍 ${esc(c.sourceName)}</div>`:''}
       <div class="vcard-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-ghost btn-sm" onclick="openDP('${c.id}')">View Details</button>
-        <button class="btn btn-green btn-sm" onclick="openDeal('${c.id}')">Record Sale</button>
+        <button class="btn btn-ghost btn-sm" onclick="openVehiclePage('${c.id}','inventory')">View Details</button>
+        <button class="btn btn-green btn-sm" onclick="openDeal('${c.id}')">🤝 Record Sale</button>
       </div>
     </div>`).join('')||`<div style="grid-column:1/-1"><div class="card"><div class="empty">
       <div class="empty-icon">🚗</div>
@@ -2513,18 +3308,47 @@ function renderSold(){
   let list=cars.filter(c=>c.status==='Sold');
   // Sort by most recent sale date first
   list=[...list].sort((a,b)=>new Date(b.soldDate||0)-new Date(a.soldDate||0));
-  if(q)list=list.filter(c=>[c.make,c.model,c.buyer,c.stock,c.vin].join(' ').toLowerCase().includes(q));
+  if(q)list=list.filter(c=>[c.make,c.model,c.buyer,c.stock,c.vin,c.dealType].join(' ').toLowerCase().includes(q));
   $('soldSub').textContent=`${list.length} completed deal${list.length!==1?'s':''}`;
-  $('soldBody').innerHTML=list.map(c=>{const pr=profit(c);return`
-    <tr class="clickable" onclick="openDP('${c.id}')">
+  // Summary stats bar
+  const totRev=list.reduce((s,c)=>s+Number(c.salePrice||0),0);
+  const totCost=list.reduce((s,c)=>s+allIn(c),0);
+  const totProfit=list.reduce((s,c)=>s+profit(c),0);
+  const totOutstanding=list.reduce((s,c)=>s+Math.max(0,dealBalance(c)),0);
+  const hasPayTracking=list.some(c=>c.dealPayments&&c.dealPayments.length);
+  const sb=$('soldStatBar');
+  if(sb&&list.length){
+    sb.style.display='grid';
+    sb.innerHTML=`
+      <div class="stat-card" style="--stat-accent:var(--blue);padding:14px 16px"><div class="stat-label" style="font-size:10px">Total Revenue</div><div class="stat-value" style="font-size:20px;color:var(--blue)">${fmt(totRev)}</div><div class="stat-meta">${list.length} deal${list.length!==1?'s':''}</div></div>
+      <div class="stat-card" style="--stat-accent:var(--text-3);padding:14px 16px"><div class="stat-label" style="font-size:10px">Total Cost</div><div class="stat-value" style="font-size:20px">${fmt(totCost)}</div><div class="stat-meta">purchase + expenses</div></div>
+      <div class="stat-card" style="--stat-accent:${totProfit>=0?'var(--green)':'var(--red)'};padding:14px 16px"><div class="stat-label" style="font-size:10px">Net ${totProfit>=0?'Profit':'Loss'}</div><div class="stat-value" style="font-size:20px;color:${totProfit>=0?'var(--green)':'var(--red)'}">${totProfit>=0?'+':''}${fmt(totProfit)}</div><div class="stat-meta">${totRev?((totProfit/totRev)*100).toFixed(1)+'% margin':''}</div></div>
+      ${hasPayTracking?`<div class="stat-card" style="--stat-accent:${totOutstanding>0?'var(--gold)':'var(--green)'};padding:14px 16px"><div class="stat-label" style="font-size:10px">Outstanding</div><div class="stat-value" style="font-size:20px;color:${totOutstanding>0?'var(--gold)':'var(--green)'}">${totOutstanding>0?fmt(totOutstanding):'$0'}</div><div class="stat-meta">${totOutstanding>0?'balance due':'all collected'}</div></div>`:
+      `<div class="stat-card" style="--stat-accent:var(--gold);padding:14px 16px"><div class="stat-label" style="font-size:10px">Avg Profit/Deal</div><div class="stat-value" style="font-size:20px;color:var(--gold)">${list.length?fmt(totProfit/list.length):'—'}</div><div class="stat-meta">per vehicle</div></div>`}
+    `;
+  } else if(sb) { sb.style.display='none'; sb.innerHTML=''; }
+  $('soldBody').innerHTML=list.map(c=>{const pr=profit(c),bal=dealBalance(c),paid=dealPaidTotal(c),hasPay=(c.dealPayments&&c.dealPayments.length>0),paidFull=Number(c.salePrice||0)>0&&bal<=0;return`
+    <tr class="clickable" onclick="openVehiclePage('${c.id}','sold')">
       <td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td>
       <td><strong>${esc(cname(c))}</strong></td><td>${esc(c.buyer)||'—'}</td>
       <td><span class="badge" style="background:var(--purple-bg);color:var(--purple)">${esc(c.dealType)||'Wholesale'}</span></td>
       <td>${fmt(allIn(c))}</td><td><strong>${fmt(c.salePrice)}</strong></td>
       <td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span><span style="font-size:10px;color:var(--text-3);margin-left:4px">${c.salePrice?((pr/Number(c.salePrice||1))*100).toFixed(1)+'%':''}</span></td>
+      <td>${hasPay?(paidFull?'<span class="badge" style="background:#DCFCE7;color:#15803D">✓ Paid</span>':'<span class="badge" style="background:#FEF3C7;color:#B45309">'+fmt(bal)+' due</span>'):'<span style="color:var(--text-3);font-size:12px">—</span>'}</td>
       <td style="color:var(--text-3);font-size:12px">${esc(c.soldDate)||'—'}</td>
       <td onclick="event.stopPropagation()"><button class="btn btn-xs btn-ghost" onclick="delCar('${c.id}')" style="color:var(--red)">Del</button></td>
-    </tr>`;}).join('')||`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No deals yet</div><div class="empty-sub">Record your first sale using the "Record Deal" button</div></div></td></tr>`;
+    </tr>`;}).join('')||`<tr><td colspan="10"><div class="empty"><div class="empty-icon">🤝</div><div class="empty-title">No deals yet</div><div class="empty-sub">Record your first sale using the "Record Deal" button</div></div></td></tr>`;
+  // Totals footer
+  const sf=$('soldFoot');
+  if(sf&&list.length){
+    sf.innerHTML=`<tr style="background:#f8fafc;font-weight:700;border-top:2px solid var(--border-strong)">
+      <td colspan="4" style="padding:11px 16px;font-size:12px;color:var(--text-3);text-transform:uppercase;letter-spacing:.5px">Totals (${list.length} deal${list.length!==1?'s':''})</td>
+      <td style="padding:11px 16px;font-family:'DM Mono',monospace;font-size:13px">${fmt(list.reduce((s,c)=>s+allIn(c),0))}</td>
+      <td style="padding:11px 16px;font-family:'DM Mono',monospace;font-size:13px">${fmt(list.reduce((s,c)=>s+Number(c.salePrice||0),0))}</td>
+      <td style="padding:11px 16px"><span class="badge ${totProfit>=0?'b-profit':'b-loss'}" style="font-size:12px">${totProfit>=0?'+':''}${fmt(totProfit)}</span></td>
+      <td colspan="3"></td>
+    </tr>`;
+  } else if(sf) sf.innerHTML='';
 }
 
 function renderPL(){
@@ -2551,7 +3375,7 @@ function renderPL(){
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">
       <div class="card"><div class="card-head"><div class="card-title">Revenue Breakdown</div></div><div style="padding:6px 8px">
-        ${ms.map(c=>`<div class="cost-row clickable" onclick="openDP('${c.id}')"><span class="cost-label">${cname(c)} <span style="color:var(--text-3);font-size:11px">(${c.stock||''})</span></span><span class="cost-amount">${fmt(c.salePrice)}</span></div>`).join('')}
+        ${ms.map(c=>`<div class="cost-row clickable" onclick="openVehiclePage('${c.id}','dashboard')"><span class="cost-label">${cname(c)} <span style="color:var(--text-3);font-size:11px">(${c.stock||''})</span></span><span class="cost-amount">${fmt(c.salePrice)}</span></div>`).join('')}
         <div class="cost-row total-row"><span class="cost-label">Total Revenue</span><span class="cost-amount" style="color:var(--green)">${fmt(rev)}</span></div>
       </div></div>
       <div class="card"><div class="card-head"><div class="card-title">Expense Breakdown</div></div><div style="padding:6px 8px">
@@ -2562,7 +3386,7 @@ function renderPL(){
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Vehicles Sold — ${fmtMo(plMonth)}</div></div>
       <div class="tbl-wrap"><table><thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th></tr></thead>
-      <tbody>${ms.map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openDP('${c.id}')"><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.stock||'—'}</td><td><strong>${cname(c)}</strong></td><td>${c.buyer||'—'}</td><td>${fmt(allIn(c))}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span></td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-3)">No sales this month</td></tr>'}</tbody>
+      <tbody>${ms.map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.stock||'—'}</td><td><strong>${cname(c)}</strong></td><td>${c.buyer||'—'}</td><td>${fmt(allIn(c))}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span></td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-3)">No sales this month</td></tr>'}</tbody>
       </table></div>
     </div>`;
 }
@@ -2570,7 +3394,42 @@ function renderPL(){
 function fmtMo(m){const[y,mo]=m.split('-');return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+' '+y;}
 
 const WMI={'1G1':'Chevrolet','1G4':'Buick','1G6':'Cadillac','1GC':'Chevrolet','1GT':'GMC','1GN':'Chevrolet','2G1':'Chevrolet','1FA':'Ford','1FB':'Ford','1FD':'Ford','1FM':'Ford','1FT':'Ford','1LN':'Lincoln','2FA':'Ford','2FM':'Ford','3FA':'Ford','3FM':'Ford','1HG':'Honda','2HG':'Honda','2HK':'Honda','5FP':'Honda','5FN':'Honda','5FR':'Acura','5J6':'Honda','JHM':'Honda','JH4':'Acura','19U':'Acura','19X':'Honda','2T1':'Toyota','2T2':'Lexus','4T1':'Toyota','4T3':'Toyota','4T4':'Toyota','5TD':'Toyota','5TF':'Toyota','5TG':'Toyota','5TJ':'Toyota','JTD':'Toyota','JTE':'Toyota','JTJ':'Lexus','JTN':'Toyota','JT6':'Lexus','JT8':'Lexus','1N4':'Nissan','1N6':'Nissan','3N1':'Nissan','5N1':'Nissan','JN1':'Nissan','JN8':'Nissan','JNK':'Infiniti','1J4':'Jeep','1J8':'Jeep','1C4':'Chrysler','1C6':'Ram','2B3':'Dodge','2C3':'Chrysler','2C4':'Chrysler','3C6':'Ram','1D7':'Ram','5NM':'Hyundai','5NP':'Hyundai','5XY':'Kia','KM8':'Hyundai','KNA':'Kia','KND':'Kia','KMH':'Hyundai','4S3':'Subaru','4S4':'Subaru','JF1':'Subaru','JF2':'Subaru','JM1':'Mazda','JM3':'Mazda','5YJ':'Tesla','5YF':'Tesla','7SA':'Tesla','3VW':'Volkswagen','WVW':'Volkswagen','WAU':'Audi','WA1':'Audi','WBS':'BMW','WBA':'BMW','WBY':'BMW','WP0':'Porsche','WP1':'Porsche','WDD':'Mercedes-Benz','WDC':'Mercedes-Benz','W1K':'Mercedes-Benz','YV1':'Volvo','YV4':'Volvo','SAJ':'Jaguar','SAL':'Land Rover','JA3':'Mitsubishi','JA4':'Mitsubishi','5UX':'BMW','5LM':'Lincoln'};
-const MDL={'1HG':{'C':'Accord','B':'Civic','R':'CR-V','Y':'Fit','D':'HR-V','S':'Pilot','L':'Odyssey','V':'Ridgeline','P':'Passport'},'2HK':{'C':'CR-V','R':'Pilot','M':'HR-V','B':'Odyssey','N':'Ridgeline'},'5FN':{'R':'Pilot','Y':'Ridgeline','B':'Odyssey'},'5FP':{'Y':'Ridgeline','K':'Ridgeline','B':'Ridgeline','S':'Ridgeline','F':'Ridgeline'},'5FR':{'L':'MDX','R':'RDX'},'JH4':{'T':'TL','D':'Integra','B':'Legend'},'4T1':{'B':'Camry','G':'Avalon','F':'Camry','D':'Corolla','N':'Camry'},'2T1':{'B':'Corolla','G':'Matrix','K':'Corolla'},'5TD':{'Y':'Sienna','Z':'Highlander','K':'Sequoia','J':'4Runner','B':'Sienna','D':'Tacoma','F':'Tundra','G':'Highlander'},'5TF':{'C':'Tacoma','E':'Tundra','B':'Tacoma','Z':'Tundra'},'5TJ':{'B':'4Runner','M':'FJ Cruiser','N':'4Runner'},'JTE':{'B':'RAV4','D':'4Runner','G':'Land Cruiser','K':'RAV4','N':'Highlander'},'JTJ':{'B':'GX','Y':'LX','G':'RX','K':'NX','N':'UX'},'2T2':{'B':'RX','G':'GX','K':'NX','N':'RX','Z':'ES'},'1N4':{'A':'Altima','B':'Maxima','C':'Sentra','L':'Leaf','R':'Rogue','E':'Versa','G':'Murano','W':'Rogue'},'1N6':{'A':'Frontier','B':'Titan','D':'Armada'},'5N1':{'A':'Armada','C':'Pathfinder','E':'Murano','N':'Rogue','R':'Rogue','T':'Kicks'},'3N1':{'A':'Sentra','B':'Sentra','C':'Versa','F':'Kicks'},'JN1':{'A':'Murano','B':'350Z','G':'G35','T':'QX60','V':'QX80'},'JN8':{'A':'Armada','B':'Pathfinder','G':'QX60','Y':'QX80'},'1FA':{'F':'Mustang','E':'Mustang','G':'Mustang'},'1FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','E':'Escape','5':'Bronco','G':'Bronco Sport','L':'Maverick'},'1FT':{'B':'F-150','C':'F-150','F':'F-250','G':'F-350','N':'F-150','P':'F-150','A':'Ranger','7':'Maverick'},'1LN':{'L':'Navigator','J':'MKZ','N':'Corsair','Z':'Nautilus','W':'Aviator'},'1G1':{'F':'Camaro','G':'Corvette','T':'Impala','Z':'Cruze','Y':'Sonic'},'1G6':{'E':'Escalade','N':'CT4','P':'CT5','R':'ATS','T':'CT6'},'1GT':{'C':'Canyon','D':'Sierra','E':'Yukon','W':'Yukon'},'1GC':{'C':'Silverado','T':'Colorado','Z':'Colorado'},'1GN':{'B':'Equinox','C':'Traverse','D':'Suburban','E':'Tahoe','K':'Blazer','Y':'Suburban','Z':'Tahoe'},'1C4':{'G':'Grand Cherokee','J':'Wrangler','N':'Pacifica','P':'Compass','W':'Renegade','X':'Cherokee','Y':'Grand Cherokee'},'1C6':{'R':'Ram 1500','S':'Ram 1500'},'3C6':{'J':'Ram 1500','T':'Ram 2500','U':'Ram 3500'},'2B3':{'C':'Charger','K':'Challenger'},'2C3':{'C':'Charger','K':'Challenger'},'2C4':{'R':'Pacifica','G':'Grand Caravan','N':'Pacifica'},'5NM':{'S':'Santa Fe','T':'Tucson','F':'Palisade','K':'Ioniq 5','P':'Kona'},'5NP':{'D':'Sonata','E':'Elantra','B':'Sonata','X':'Elantra'},'5XY':{'K':'Sorento','P':'Sportage','T':'Telluride','U':'Soul','G':'EV6'},'KNA':{'F':'Optima','B':'Soul','C':'Forte','D':'K5'},'KND':{'J':'Sorento','M':'Sportage','T':'Sorento'},'4S4':{'B':'Outback','W':'Forester','X':'Legacy','G':'Crosstrek'},'JF1':{'B':'Legacy','G':'Impreza','S':'Forester','A':'WRX','Z':'BRZ','X':'Crosstrek'},'JM1':{'B':'Mazda3','C':'Mazda6','D':'CX-5','F':'CX-9','G':'MX-5 Miata','N':'CX-30'},'JM3':{'K':'CX-5','T':'CX-9','R':'CX-30'},'WBA':{'3':'3 Series','4':'4 Series','5':'5 Series','7':'7 Series','A':'3 Series','G':'5 Series'},'5UX':{'C':'X3','G':'X4','J':'X5','L':'X6','U':'X7','B':'X1','E':'X2'},'WBY':{'H':'i3','K':'i4','N':'iX'},'WDD':{'G':'C-Class','H':'E-Class','J':'S-Class','P':'GLC-Class','R':'GLE-Class','W':'GLS-Class'},'WDC':{'G':'GLC-Class','H':'GLE-Class','J':'GLS-Class'},'WAU':{'A':'A4','B':'A6','C':'A8','D':'A5','K':'Q3','L':'Q5','M':'Q7','N':'Q8','T':'A3'},'WA1':{'A':'Q7','B':'Q5','C':'Q3','D':'Q8','P':'e-tron'},'3VW':{'A':'Jetta','B':'Beetle','F':'Tiguan','G':'Atlas','K':'ID.4','L':'Taos'},'5YJ':{'3':'Model 3','S':'Model S','X':'Model X','Y':'Model Y'},'7SA':{'Y':'Model Y'},'YV1':{'B':'S60','G':'XC60','H':'XC90','V':'XC40'},'YV4':{'A':'XC60','D':'XC90','G':'XC40'},'WP0':{'B':'911','C':'Cayenne','D':'Panamera','E':'Macan','F':'Taycan','L':'Cayman'},'SAL':{'D':'Defender','G':'Range Rover','R':'Range Rover Sport','T':'Evoque','X':'Defender','Z':'Range Rover Sport'},'SAJ':{'D':'F-Type','F':'F-Pace','G':'E-Pace','H':'I-Pace','K':'XF'},'JA4':{'D':'Outlander','G':'Outlander Sport','J':'Outlander'}};
+const MDL={'1HG':{'C':'Accord','B':'Civic','R':'CR-V','Y':'Fit','D':'HR-V','S':'Pilot','L':'Odyssey','V':'Ridgeline','P':'Passport','Z':'Insight','E':'Element','F':'Fit','G':'Accord','W':'Crosstour'},'2HK':{'C':'CR-V','R':'Pilot','M':'HR-V','B':'Odyssey','N':'Ridgeline'},'5FN':{'R':'Pilot','Y':'Ridgeline','B':'Odyssey'},'5FP':{'Y':'Ridgeline','K':'Ridgeline','B':'Ridgeline','S':'Ridgeline','F':'Ridgeline'},'5FR':{'L':'MDX','R':'RDX'},'JH4':{'T':'TL','D':'Integra','B':'Legend'},'4T1':{'B':'Camry','G':'Avalon','F':'Camry','D':'Corolla','N':'Camry'},'2T1':{'B':'Corolla','G':'Matrix','K':'Corolla'},'5TD':{'Y':'Sienna','Z':'Highlander','K':'Sequoia','J':'4Runner','B':'Sienna','D':'Tacoma','F':'Tundra','G':'Highlander'},'5TF':{'C':'Tacoma','E':'Tundra','B':'Tacoma','Z':'Tundra'},'5TJ':{'B':'4Runner','M':'FJ Cruiser','N':'4Runner'},'JTE':{'B':'RAV4','D':'4Runner','G':'Land Cruiser','K':'RAV4','N':'Highlander'},'JTJ':{'B':'GX','Y':'LX','G':'RX','K':'NX','N':'UX'},'2T2':{'B':'RX','G':'GX','K':'NX','N':'RX','Z':'ES'},'1N4':{'A':'Altima','B':'Maxima','C':'Sentra','L':'Leaf','R':'Rogue','E':'Versa','G':'Murano','W':'Rogue','Z':'370Z','N':'Altima','K':'Kicks','P':'Pathfinder'},'1N6':{'A':'Frontier','B':'Titan','D':'Armada'},'5N1':{'A':'Armada','C':'Pathfinder','E':'Murano','N':'Rogue','R':'Rogue','T':'Kicks','B':'Pathfinder','M':'Murano','S':'Frontier','Z':'Frontier'},'3N1':{'A':'Sentra','B':'Sentra','C':'Versa','F':'Kicks'},'JN1':{'A':'Murano','B':'350Z','G':'G35','T':'QX60','V':'QX80'},'JN8':{'A':'Armada','B':'Pathfinder','G':'QX60','Y':'QX80'},'1FA':{'F':'Mustang','E':'Mustang','G':'Mustang'},'1FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','E':'Escape','5':'Bronco','G':'Bronco Sport','L':'Maverick'},'1FT':{'B':'F-150','C':'F-150','F':'F-250','G':'F-350','N':'F-150','P':'F-150','A':'Ranger','7':'Maverick'},'1LN':{'L':'Navigator','J':'MKZ','N':'Corsair','Z':'Nautilus','W':'Aviator'},'1G1':{'F':'Camaro','G':'Corvette','T':'Impala','Z':'Cruze','Y':'Sonic','W':'Malibu','B':'Spark','S':'Malibu','R':'Trax'},'1G6':{'E':'Escalade','N':'CT4','P':'CT5','R':'ATS','T':'CT6'},'1GT':{'C':'Canyon','D':'Sierra','E':'Yukon','W':'Yukon'},'1GC':{'C':'Silverado','T':'Colorado','Z':'Colorado'},'1GN':{'B':'Equinox','C':'Traverse','D':'Suburban','E':'Tahoe','K':'Blazer','Y':'Suburban','Z':'Tahoe','R':'Trax','S':'Trax','A':'Equinox EV','F':'Trax'},'1C4':{'G':'Grand Cherokee','J':'Wrangler','N':'Pacifica','P':'Compass','W':'Renegade','X':'Cherokee','Y':'Grand Cherokee'},'1C6':{'R':'Ram 1500','S':'Ram 1500'},'3C6':{'J':'Ram 1500','T':'Ram 2500','U':'Ram 3500'},'2B3':{'C':'Charger','K':'Challenger'},'2C3':{'C':'Charger','K':'Challenger'},'2C4':{'R':'Pacifica','G':'Grand Caravan','N':'Pacifica'},'5NM':{'S':'Santa Fe','T':'Tucson','F':'Palisade','K':'Ioniq 5','P':'Kona'},'5NP':{'D':'Sonata','E':'Elantra','B':'Sonata','X':'Elantra'},'5XY':{'K':'Sorento','P':'Sportage','T':'Telluride','U':'Soul','G':'EV6'},'KNA':{'F':'Optima','B':'Soul','C':'Forte','D':'K5'},'KND':{'J':'Sorento','M':'Sportage','T':'Sorento'},'4S4':{'B':'Outback','W':'Forester','X':'Legacy','G':'Crosstrek'},'JF1':{'B':'Legacy','G':'Impreza','S':'Forester','A':'WRX','Z':'BRZ','X':'Crosstrek'},'JM1':{'B':'Mazda3','C':'Mazda6','D':'CX-5','F':'CX-9','G':'MX-5 Miata','N':'CX-30'},'JM3':{'K':'CX-5','T':'CX-9','R':'CX-30'},'WBA':{'3':'3 Series','4':'4 Series','5':'5 Series','7':'7 Series','A':'3 Series','G':'5 Series'},'5UX':{'C':'X3','G':'X4','J':'X5','L':'X6','U':'X7','B':'X1','E':'X2'},'WBY':{'H':'i3','K':'i4','N':'iX'},'WDD':{'G':'C-Class','H':'E-Class','J':'S-Class','P':'GLC-Class','R':'GLE-Class','W':'GLS-Class'},'WDC':{'G':'GLC-Class','H':'GLE-Class','J':'GLS-Class'},'WAU':{'A':'A4','B':'A6','C':'A8','D':'A5','K':'Q3','L':'Q5','M':'Q7','N':'Q8','T':'A3'},'WA1':{'A':'Q7','B':'Q5','C':'Q3','D':'Q8','P':'e-tron'},'3VW':{'A':'Jetta','B':'Beetle','F':'Tiguan','G':'Atlas','K':'ID.4','L':'Taos'},'5YJ':{'3':'Model 3','S':'Model S','X':'Model X','Y':'Model Y'},'7SA':{'Y':'Model Y'},'YV1':{'B':'S60','G':'XC60','H':'XC90','V':'XC40'},'YV4':{'A':'XC60','D':'XC90','G':'XC40'},'WP0':{'B':'911','C':'Cayenne','D':'Panamera','E':'Macan','F':'Taycan','L':'Cayman'},'SAL':{'D':'Defender','G':'Range Rover','R':'Range Rover Sport','T':'Evoque','X':'Defender','Z':'Range Rover Sport'},'SAJ':{'D':'F-Type','F':'F-Pace','G':'E-Pace','H':'I-Pace','K':'XF'},'JA4':{'D':'Outlander','G':'Outlander Sport','J':'Outlander'},
+'1G4':{'Z':'Verano','P':'LaCrosse','G':'LeSabre','H':'Park Avenue','C':'Enclave','D':'Encore','F':'Envision','N':'Envision','E':'Encore GX'},
+'2G1':{'F':'Camaro','W':'Malibu','T':'Impala','Z':'Cruze','Y':'Sonic','G':'Corvette','B':'Spark','S':'Malibu'},
+'1FB':{'F':'Transit','Z':'Transit Connect','E':'E-Series','W':'E-Series'},
+'1FD':{'F':'F-450','G':'F-550','H':'E-Series','X':'F-350','A':'F-650','W':'F-450'},
+'2FA':{'F':'Mustang','G':'Fusion','K':'Edge','H':'Escape'},
+'2FM':{'C':'Explorer','H':'Escape','J':'Edge','K':'Explorer','U':'Expedition','G':'Bronco Sport','E':'Escape'},
+'3FA':{'F':'Fusion','D':'Fusion','K':'Fusion Energi','G':'Mustang','H':'Escape'},
+'3FM':{'E':'Escape','J':'Edge','C':'Explorer','H':'EcoSport'},
+'2HG':{'F':'Civic','G':'Accord','R':'CR-V','S':'Pilot'},
+'5J6':{'R':'CR-V','T':'HR-V','Y':'Ridgeline','M':'Passport','W':'CR-V'},
+'JHM':{'C':'Accord','B':'Civic','S':'CR-V','G':'CR-V','R':'CR-V'},
+'19U':{'U':'TL','Y':'MDX','D':'ILX','F':'TSX','A':'Integra','V':'RDX'},
+'19X':{'F':'Civic','G':'Civic','H':'Civic'},
+'4T3':{'Z':'Venza','B':'Highlander','K':'Venza','L':'Venza'},
+'4T4':{'B':'Camry','Z':'Venza','K':'RAV4','F':'Camry'},
+'5TG':{'G':'Sequoia','B':'Sequoia','R':'Land Cruiser','N':'Sequoia'},
+'JTD':{'K':'Prius','B':'Corolla','D':'RAV4','E':'Corolla','F':'Prius'},
+'JTN':{'B':'Highlander','K':'Tacoma','G':'4Runner','D':'RAV4','N':'Highlander'},
+'JT6':{'G':'GS','V':'GS','H':'GX','F':'GS'},
+'JT8':{'B':'LS','J':'SC','D':'LS','G':'ES','H':'ES'},
+'JNK':{'B':'Q45','C':'Q50','D':'Q70','V':'Q50','A':'QX4','N':'Q60'},
+'1J4':{'F':'Wrangler','G':'Grand Cherokee','H':'Cherokee','R':'Wrangler','N':'Liberty'},
+'1J8':{'F':'Wrangler','G':'Grand Cherokee','H':'Commander','R':'Wrangler','N':'Liberty'},
+'1D7':{'H':'Ram 1500','R':'Ram 1500','S':'Ram 2500','F':'Ram 1500','B':'Ram 1500','G':'Ram 2500'},
+'KM8':{'J':'Tucson','S':'Santa Fe','R':'Sportage','N':'Tucson','Z':'Ioniq 5'},
+'KMH':{'C':'Accent','D':'Elantra','G':'Sonata','F':'Veloster','H':'Elantra','N':'Ioniq','S':'Santa Fe','J':'Tucson','B':'Elantra','T':'Tucson'},
+'4S3':{'B':'Legacy','H':'Outback','A':'Impreza','M':'Impreza','D':'Forester'},
+'JF2':{'G':'Forester','S':'Impreza','B':'Legacy','A':'WRX','Z':'BRZ','T':'Forester'},
+'5YF':{'Y':'Model Y','3':'Model 3','S':'Model S','X':'Model X'},
+'WVW':{'A':'Golf','B':'Jetta','D':'Golf','F':'Tiguan','Z':'Beetle','G':'Atlas','K':'ID.4','J':'Jetta'},
+'WBS':{'3':'M3','4':'M4','6':'M6','2':'M2','5':'M5','8':'M8','B':'M2','K':'M3'},
+'WP1':{'A':'Cayenne','B':'Cayenne','C':'Macan','Z':'Cayenne','N':'Taycan Cross','S':'Cayenne'},
+'W1K':{'W':'E-Class','K':'C-Class','Z':'GLC','N':'GLE','F':'GLS','E':'EQS','A':'A-Class','V':'C-Class'},
+'JA3':{'A':'Galant','U':'Eclipse','W':'Outlander','Y':'Eclipse Cross','V':'Eclipse'},
+'5LM':{'C':'Nautilus','F':'Navigator','J':'MKT','T':'MKT','P':'Corsair','E':'Aviator','H':'Aviator'}};
 
 function getYear(v){
   const ch=v[9].toUpperCase();
