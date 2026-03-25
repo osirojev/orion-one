@@ -431,6 +431,21 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 .vin-scan-actions{display:flex;flex-direction:column;gap:10px}
 .vin-scan-err{background:rgba(220,38,38,.15);border:1px solid rgba(220,38,38,.3);border-radius:8px;padding:10px 12px;font-size:12.5px;color:#fca5a5;margin-bottom:12px;display:none}
 .vin-scan-err.show{display:block}
+.vin-live-wrap{position:relative;width:100%;border-radius:12px;overflow:hidden;margin-bottom:14px;background:#000;aspect-ratio:4/3;display:none}
+.vin-live-wrap.show{display:block}
+#vinLiveVideo{width:100%;height:100%;object-fit:cover;display:block}
+.vin-scan-frame{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.vin-scan-frame-inner{width:85%;height:28%;border:2px solid rgba(251,191,36,.8);border-radius:8px;position:relative;box-shadow:0 0 0 4000px rgba(0,0,0,.45)}
+.vin-scan-line{position:absolute;left:4px;right:4px;height:2px;background:linear-gradient(90deg,transparent,#fbbf24,transparent);top:50%;transform:translateY(-50%);animation:scanLine 1.8s ease-in-out infinite}
+@keyframes scanLine{0%,100%{top:10%}50%{top:90%}}
+.vin-scan-corner{position:absolute;width:16px;height:16px;border-color:#fbbf24;border-style:solid;border-width:0}
+.vin-scan-corner.tl{top:-1px;left:-1px;border-top-width:3px;border-left-width:3px;border-radius:6px 0 0 0}
+.vin-scan-corner.tr{top:-1px;right:-1px;border-top-width:3px;border-right-width:3px;border-radius:0 6px 0 0}
+.vin-scan-corner.bl{bottom:-1px;left:-1px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 6px}
+.vin-scan-corner.br{bottom:-1px;right:-1px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 6px 0}
+.vin-live-hint{position:absolute;bottom:8px;left:0;right:0;text-align:center;font-size:11px;color:rgba(255,255,255,.6);padding:0 8px}
+.vin-scan-found{animation:vinFound .4s ease}
+@keyframes vinFound{0%,100%{border-color:rgba(251,191,36,.8)}50%{border-color:#4ade80;box-shadow:0 0 0 4000px rgba(0,0,0,.45),0 0 20px rgba(74,222,128,.4)}}
 
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
@@ -1259,18 +1274,36 @@ tfoot tr:hover td{background:#f0f7ff}
 
 <div id="vinScanOverlay">
   <div class="vin-scan-box">
-    <div class="vin-scan-icon">📷</div>
-    <div class="vin-scan-title">Scan VIN</div>
-    <div class="vin-scan-sub">Take a photo of the <strong style="color:#fbbf24">barcode</strong> on the door jamb sticker — or the VIN plate on the dashboard. Make sure it's well lit and in focus.</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div class="vin-scan-title" style="margin-bottom:2px">📷 Scan VIN Barcode</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.4)">Point camera at the barcode on door jamb sticker</div>
+      </div>
+      <button onclick="closeVinScanner()" style="background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.5);border-radius:50%;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+    </div>
+    <!-- Live camera view -->
+    <div class="vin-live-wrap" id="vinLiveWrap">
+      <video id="vinLiveVideo" playsinline muted autoplay></video>
+      <div class="vin-scan-frame">
+        <div class="vin-scan-frame-inner" id="vinScanFrameInner">
+          <div class="vin-scan-line"></div>
+          <div class="vin-scan-corner tl"></div>
+          <div class="vin-scan-corner tr"></div>
+          <div class="vin-scan-corner bl"></div>
+          <div class="vin-scan-corner br"></div>
+        </div>
+      </div>
+      <div class="vin-live-hint" id="vinLiveHint">Align barcode inside the frame</div>
+    </div>
+    <!-- Photo fallback preview -->
     <img id="vinPreviewImg" class="vin-scan-preview" alt="VIN photo">
     <div class="vin-scan-err" id="vinScanErr"></div>
-    <div class="vin-scan-status" id="vinScanStatus">🔍 Reading VIN from photo...</div>
+    <div class="vin-scan-status" id="vinScanStatus"></div>
     <div class="vin-scan-result" id="vinScanResult"></div>
     <div class="vin-scan-actions">
       <input type="file" id="vinPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="processVinPhoto(this)">
-      <button class="btn btn-gold" style="width:100%;justify-content:center;padding:13px;font-size:15px" onclick="$('vinPhotoInput').click()">📷 Take Photo / Choose Image</button>
+      <button class="btn btn-gold" id="vinPhotoBtn" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="$('vinPhotoInput').click()">📸 Take Photo Instead</button>
       <button class="btn btn-ghost" id="vinUseBtn" style="width:100%;justify-content:center;display:none" onclick="useScannedVin()">✓ Use This VIN</button>
-      <button class="btn btn-ghost" style="width:100%;justify-content:center;color:rgba(255,255,255,.4);background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1)" onclick="closeVinScanner()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2341,22 +2374,82 @@ function updateBadge(){$('invBadge').textContent=cars.filter(c=>c.status!=='Sold
 
 // ── VIN SCANNER ──
 // ── VIN SCANNER (BarcodeDetector + Canvas fallback) ──
-let scannedVin = null;
+let scannedVin=null, vinStream=null, vinScanLoop=null, vinScanActive=false;
 
 function openVinScanner(){
-  scannedVin = null;
-  $('vinPreviewImg').classList.remove('show');
-  $('vinScanErr').classList.remove('show');
-  $('vinScanStatus').classList.remove('show');
-  $('vinScanResult').classList.remove('show');
+  scannedVin=null;
+  ['vinPreviewImg','vinScanErr','vinScanStatus','vinScanResult'].forEach(id=>$(id).classList.remove('show'));
   $('vinUseBtn').style.display='none';
   $('vinPhotoInput').value='';
   $('vinScanOverlay').classList.add('open');
+  startLiveVinScanner();
 }
 
 function closeVinScanner(){
+  stopLiveScanner();
   $('vinScanOverlay').classList.remove('open');
-  scannedVin = null;
+  scannedVin=null;
+}
+
+async function startLiveVinScanner(){
+  $('vinLiveWrap').classList.remove('show');
+  $('vinPhotoBtn').textContent='📸 Take Photo Instead';
+  try{
+    if(!navigator.mediaDevices?.getUserMedia) throw new Error('no getUserMedia');
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}});
+    vinStream=stream;
+    const vid=$('vinLiveVideo');
+    vid.srcObject=stream;
+    await vid.play();
+    $('vinLiveWrap').classList.add('show');
+    $('vinPhotoBtn').textContent='📸 Take Photo Instead';
+    vinScanActive=true;
+    scanLiveFrame(vid);
+  }catch(e){
+    // Camera not available (file:// on mobile, permissions denied)
+    $('vinLiveWrap').classList.remove('show');
+    $('vinScanStatus').textContent='📷 Point your phone camera at the VIN barcode — or use "Take Photo" below';
+    $('vinScanStatus').classList.add('show');
+    $('vinPhotoBtn').textContent='📷 Take Photo / Open Camera';
+  }
+}
+
+async function scanLiveFrame(vid){
+  if(!vinScanActive||!vinStream) return;
+  let found=null;
+  try{
+    if('BarcodeDetector' in window){
+      const det=new BarcodeDetector({formats:['code_39','code_128','pdf417','data_matrix','qr_code','aztec']});
+      const codes=await det.detect(vid);
+      for(const b of codes){const v=vinClean(b.rawValue);if(v){found=v;break;}}
+    }
+    if(!found&&window.ZXing){
+      const c=document.createElement('canvas');
+      c.width=vid.videoWidth;c.height=vid.videoHeight;
+      c.getContext('2d').drawImage(vid,0,0);
+      found=await tryZXing(c);
+    }
+  }catch(e){}
+  if(found&&vinScanActive){
+    vinScanActive=false;
+    stopLiveScanner();
+    scannedVin=found;
+    $('vinScanFrameInner').classList.add('vin-scan-found');
+    $('vinLiveHint').textContent='✅ VIN detected!';
+    $('vinScanResult').textContent=found;
+    $('vinScanResult').classList.add('show');
+    $('vinUseBtn').style.display='block';
+    return;
+  }
+  vinScanLoop=requestAnimationFrame(()=>scanLiveFrame(vid));
+}
+
+function stopLiveScanner(){
+  vinScanActive=false;
+  if(vinScanLoop){cancelAnimationFrame(vinScanLoop);vinScanLoop=null;}
+  if(vinStream){vinStream.getTracks().forEach(t=>t.stop());vinStream=null;}
+  const vid=$('vinLiveVideo');
+  if(vid)vid.srcObject=null;
 }
 
 function vinClean(raw){
@@ -2486,11 +2579,11 @@ function useManualVin(){
   useScannedVin();
 }
 
-function useScannedVin(){
+async function useScannedVin(){
   if(!scannedVin) return;
   closeVinScanner();
   $('f_vin').value = scannedVin;
-  onVin($('f_vin'));
+  await onVin($('f_vin'));
   toast('VIN applied ✓ — details auto-filled');
 }
 function getKnownVendors(){
@@ -3438,7 +3531,7 @@ function getYear(v){
   return nw[ch]||(nw[ch]&&old[ch]?nw[ch]:old[ch])||null;
 }
 
-function decodeVIN(vin){
+function decodeVINlocal(vin){
   const v=vin.toUpperCase();
   const make=WMI[v.slice(0,3)]||WMI[v.slice(0,2)]||null;
   const year=getYear(v);
@@ -3447,21 +3540,41 @@ function decodeVIN(vin){
   return{make,model,year};
 }
 
-function onVin(inp){
+async function decodeVINapi(vin){
+  try{
+    const res=await fetch(`https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/${vin}?format=json`,{signal:AbortSignal.timeout(5000)});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    const get=id=>(data.Results?.find(r=>r.VariableId===id)?.Value||'').trim();
+    const make=get(26),model=get(28),yr=parseInt(get(29))||null;
+    if(make&&make!=='Not Applicable'&&make!=='')return{make,model:model&&model!=='Not Applicable'?model:null,year:yr};
+  }catch(e){console.log('NHTSA API:',e.message);}
+  return null;
+}
+
+async function onVin(inp){
   const v=inp.value.replace(/[^a-zA-Z0-9]/g,'').toUpperCase();
   inp.value=v;
   const ctr=$('vinCtr'),pill=$('vinPill');
   ctr.textContent=v.length+'/17';
   ctr.style.color=v.length===17?'var(--green)':'var(--text-3)';
   if(v.length<17){pill.className='vin-pill';return;}
-  const{make,model,year}=decodeVIN(v);
+  // Show loading state
+  pill.className='vin-pill warn';
+  pill.innerHTML='⏳ Decoding VIN...';
+  if(!$('f_stock').value.trim())$('f_stock').value='OS'+v.slice(-6);
+  // Try NHTSA API first (accurate for any VIN)
+  let make=null,model=null,year=null;
+  const api=await decodeVINapi(v);
+  if(api){make=api.make;model=api.model;year=api.year;}
+  // Fallback to local lookup table (offline)
+  if(!make){const loc=decodeVINlocal(v);make=loc.make;model=loc.model;year=loc.year;}
   if(year)$('f_year').value=year;
   if(make)$('f_make').value=make;
   if(model)$('f_model').value=model;
-  if(!$('f_stock').value.trim())$('f_stock').value='OS'+v.slice(-6);
   if(make&&model){pill.className='vin-pill ok';pill.innerHTML=`✅ <strong>${year||''} ${make} ${model}</strong> — verify details below`;}
   else if(make){pill.className='vin-pill warn';pill.innerHTML=`⚡ <strong>${year||''} ${make}</strong> — enter Model manually`;}
-  else{pill.className='vin-pill err';pill.innerHTML=`❌ VIN not recognized — fill in details below`;}
+  else{pill.className='vin-pill err';pill.innerHTML=`❌ VIN not recognized — fill in details manually`;}
 }
 
 document.addEventListener('keydown',e=>{
