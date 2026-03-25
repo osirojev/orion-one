@@ -2382,7 +2382,18 @@ function openVinScanner(){
   $('vinUseBtn').style.display='none';
   $('vinPhotoInput').value='';
   $('vinScanOverlay').classList.add('open');
-  startLiveVinScanner();
+  // On file:// (local file on phone), getUserMedia is blocked — auto-open camera directly
+  const isFile=location.protocol==='file:';
+  const hasCamera=!!navigator.mediaDevices?.getUserMedia;
+  if(isFile||!hasCamera){
+    // Trigger native camera immediately while still in user gesture context
+    setTimeout(()=>$('vinPhotoInput').click(), 80);
+    $('vinScanStatus').textContent='📷 Opening camera...';
+    $('vinScanStatus').classList.add('show');
+    $('vinPhotoBtn').textContent='📷 Open Camera Again';
+  } else {
+    startLiveVinScanner();
+  }
 }
 
 function closeVinScanner(){
@@ -2393,9 +2404,7 @@ function closeVinScanner(){
 
 async function startLiveVinScanner(){
   $('vinLiveWrap').classList.remove('show');
-  $('vinPhotoBtn').textContent='📸 Take Photo Instead';
   try{
-    if(!navigator.mediaDevices?.getUserMedia) throw new Error('no getUserMedia');
     const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}});
     vinStream=stream;
     const vid=$('vinLiveVideo');
@@ -2403,14 +2412,16 @@ async function startLiveVinScanner(){
     await vid.play();
     $('vinLiveWrap').classList.add('show');
     $('vinPhotoBtn').textContent='📸 Take Photo Instead';
+    $('vinScanStatus').classList.remove('show');
     vinScanActive=true;
     scanLiveFrame(vid);
   }catch(e){
-    // Camera not available (file:// on mobile, permissions denied)
+    // Permissions denied or not available
     $('vinLiveWrap').classList.remove('show');
-    $('vinScanStatus').textContent='📷 Point your phone camera at the VIN barcode — or use "Take Photo" below';
+    setTimeout(()=>$('vinPhotoInput').click(), 80);
+    $('vinScanStatus').textContent='📷 Opening camera...';
     $('vinScanStatus').classList.add('show');
-    $('vinPhotoBtn').textContent='📷 Take Photo / Open Camera';
+    $('vinPhotoBtn').textContent='📷 Open Camera Again';
   }
 }
 
@@ -2550,18 +2561,20 @@ async function processVinPhoto(input){
 
   if(foundVin){
     scannedVin=foundVin;
-    $('vinScanResult').textContent=foundVin;
+    $('vinScanResult').textContent='✅ '+foundVin;
     $('vinScanResult').classList.add('show');
-    $('vinUseBtn').style.display='block';
+    // Auto-use the VIN immediately — no extra tap needed
+    await useScannedVin();
   }else{
     $('vinScanErr').innerHTML=`
-      <div style="margin-bottom:10px">⚠️ Couldn't read the barcode. Tips: get closer to the barcode, ensure good lighting, hold the phone steady. Or type the VIN manually:</div>
-      <div style="display:flex;gap:8px">
+      <div style="margin-bottom:8px">⚠️ Couldn't read the barcode. Try again with better lighting or get closer. Or enter VIN manually:</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
         <input id="vinManualInput" placeholder="Type VIN here..." maxlength="17"
           style="flex:1;padding:9px 12px;border-radius:6px;border:1.5px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font-family:'DM Mono',monospace;font-size:13px;letter-spacing:.5px;text-transform:uppercase;outline:none"
           oninput="this.value=this.value.toUpperCase();checkManualVin()">
         <button class="btn btn-gold btn-sm" onclick="useManualVin()" id="vinManualBtn" style="opacity:.5;pointer-events:none">Use</button>
-      </div>`;
+      </div>
+      <button class="btn btn-gold" style="width:100%;justify-content:center;padding:11px" onclick="$('vinPhotoInput').value='';$('vinPhotoInput').click()">📷 Try Again</button>`;
     $('vinScanErr').classList.add('show');
   }
 }
