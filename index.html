@@ -416,7 +416,7 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 /* ── VIN SCANNER ── */
 .vin-scan-btn{position:absolute;right:38px;top:50%;transform:translateY(-50%);background:var(--gold);border:none;border-radius:5px;padding:4px 8px;font-size:14px;cursor:pointer;line-height:1;transition:opacity .15s}
 .vin-scan-btn:hover{opacity:.85}
-#vinScanOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+#vinScanOverlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99998;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:24px;padding-top:max(24px,env(safe-area-inset-top));overflow-y:auto}
 #vinScanOverlay.open{display:flex;animation:fadeI .2s}
 .vin-scan-box{background:#1f1f23;border-radius:20px;padding:28px 24px;width:100%;max-width:400px;text-align:center}
 .vin-scan-icon{font-size:48px;margin-bottom:12px}
@@ -555,6 +555,35 @@ tbody tr.clickable:hover td{background:#F0F7FF}
 
   /* VIN field scan btn */
   .vin-scan-btn{right:42px}
+  /* VIN scanner overlay on mobile */
+  #vinScanOverlay{padding:16px;padding-top:max(16px,env(safe-area-inset-top))}
+  .vin-scan-box{padding:20px 16px;border-radius:16px}
+
+  /* ── Inventory page header mobile ── */
+  #pg-inventory .page-header{padding-bottom:8px}
+  #pg-inventory .ph-actions{flex-direction:column;align-items:stretch;gap:6px;margin-top:8px}
+  #pg-inventory .ph-actions .toolbar{flex-wrap:nowrap;gap:6px;align-items:stretch}
+  #pg-inventory .ph-actions .toolbar .search-box{flex:1;min-width:0}
+  #pg-inventory .ph-actions .toolbar .search-box input{width:100%;box-sizing:border-box;padding-right:36px}
+  #pg-inventory .ph-actions .toolbar .filter-sel{flex:1;min-width:0;font-size:12px;padding:8px 4px;max-width:48%}
+  /* Hide import + add vehicle buttons (+ tab bar already has Add) */
+  #pg-inventory .ph-actions>.btn-ghost,
+  #pg-inventory .ph-actions>.btn-dark{display:none}
+  /* Inv chips wrap nicely */
+  .inv-chips{gap:6px}
+  .inv-chip{font-size:12px;padding:5px 10px}
+
+  /* ── Vehicle detail page mobile ── */
+  .vd-stats{grid-template-columns:1fr 1fr}
+  .vd-photo-thumbs{display:none}
+  .vd-photo-hero{grid-template-columns:1fr}
+
+  /* ── Sold page header ── */
+  #pg-sold .ph-actions,#pg-deals .ph-actions{flex-direction:column;align-items:stretch;gap:6px;margin-top:8px}
+  #pg-sold .ph-actions .toolbar,#pg-deals .ph-actions .toolbar{flex-wrap:nowrap;gap:6px}
+  #pg-sold .ph-actions .toolbar .search-box,#pg-deals .ph-actions .toolbar .search-box{flex:1;min-width:0}
+  #pg-sold .ph-actions .toolbar .search-box input,#pg-deals .ph-actions .toolbar .search-box input{width:100%}
+  #pg-sold .ph-actions .toolbar .filter-sel,#pg-deals .ph-actions .toolbar .filter-sel{flex:1;min-width:0;font-size:12px;padding:8px 4px}
 }
 
 /* ── VEHICLE DETAIL PAGE ── */
@@ -1302,7 +1331,7 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="vin-scan-result" id="vinScanResult"></div>
     <div class="vin-scan-actions">
       <input type="file" id="vinPhotoInput" accept="image/*" capture="environment" style="display:none" onchange="processVinPhoto(this)">
-      <button class="btn btn-gold" id="vinPhotoBtn" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="$('vinPhotoInput').click()">📸 Take Photo Instead</button>
+      <label class="btn btn-gold" id="vinPhotoBtn" for="vinPhotoInput" style="width:100%;justify-content:center;padding:12px;font-size:14px;cursor:pointer;text-align:center">📸 Take Photo / Scan VIN</label>
       <button class="btn btn-ghost" id="vinUseBtn" style="width:100%;justify-content:center;display:none" onclick="useScannedVin()">✓ Use This VIN</button>
     </div>
   </div>
@@ -2383,14 +2412,11 @@ function openVinScanner(){
   $('vinPhotoInput').value='';
   $('vinScanOverlay').classList.add('open');
   // On file:// (local file on phone), getUserMedia is blocked — auto-open camera directly
-  const isFile=location.protocol==='file:';
-  const hasCamera=!!navigator.mediaDevices?.getUserMedia;
-  if(isFile||!hasCamera){
-    // Trigger native camera immediately while still in user gesture context
-    setTimeout(()=>$('vinPhotoInput').click(), 80);
-    $('vinScanStatus').textContent='📷 Opening camera...';
-    $('vinScanStatus').classList.add('show');
-    $('vinPhotoBtn').textContent='📷 Open Camera Again';
+  const hasCamera=!!navigator.mediaDevices?.getUserMedia&&location.protocol!=='file:';
+  if(!hasCamera){
+    // On iOS/file:// — show the label button so user taps it directly (iOS requires direct gesture, not programmatic click)
+    $('vinPhotoBtn').innerHTML='📷 Tap Here to Open Camera';
+    $('vinPhotoBtn').style.display='flex';
   } else {
     startLiveVinScanner();
   }
@@ -2411,17 +2437,15 @@ async function startLiveVinScanner(){
     vid.srcObject=stream;
     await vid.play();
     $('vinLiveWrap').classList.add('show');
-    $('vinPhotoBtn').textContent='📸 Take Photo Instead';
+    $('vinPhotoBtn').innerHTML='📸 Take Photo Instead';
     $('vinScanStatus').classList.remove('show');
     vinScanActive=true;
     scanLiveFrame(vid);
   }catch(e){
-    // Permissions denied or not available
+    // Permissions denied or not available — show label button for direct tap
     $('vinLiveWrap').classList.remove('show');
-    setTimeout(()=>$('vinPhotoInput').click(), 80);
-    $('vinScanStatus').textContent='📷 Opening camera...';
-    $('vinScanStatus').classList.add('show');
-    $('vinPhotoBtn').textContent='📷 Open Camera Again';
+    $('vinPhotoBtn').innerHTML='📷 Tap Here to Open Camera';
+    $('vinPhotoBtn').style.display='flex';
   }
 }
 
@@ -2574,7 +2598,7 @@ async function processVinPhoto(input){
           oninput="this.value=this.value.toUpperCase();checkManualVin()">
         <button class="btn btn-gold btn-sm" onclick="useManualVin()" id="vinManualBtn" style="opacity:.5;pointer-events:none">Use</button>
       </div>
-      <button class="btn btn-gold" style="width:100%;justify-content:center;padding:11px" onclick="$('vinPhotoInput').value='';$('vinPhotoInput').click()">📷 Try Again</button>`;
+      <label class="btn btn-gold" for="vinPhotoInput" onclick="$('vinPhotoInput').value=''" style="width:100%;justify-content:center;padding:11px;cursor:pointer;text-align:center">📷 Try Again</label>`;
     $('vinScanErr').classList.add('show');
   }
 }
