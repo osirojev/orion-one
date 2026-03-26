@@ -573,10 +573,29 @@ tbody tr.clickable:hover td{background:#F0F7FF}
   .inv-chips{gap:6px}
   .inv-chip{font-size:12px;padding:5px 10px}
 
-  /* ── Vehicle detail page mobile ── */
+  /* ── Vehicle detail page header mobile ── */
+  #pg-vehicle .page-header{flex-direction:column;align-items:stretch;gap:4px}
+  #pg-vehicle .page-header > div:first-child{flex-direction:column!important;align-items:flex-start!important;gap:3px!important;min-width:0;width:100%}
+  #vd-back{align-self:flex-start;margin-bottom:2px}
+  #vd-title{font-size:17px;line-height:1.2;font-weight:800;white-space:normal;word-break:break-word}
+  #vd-sub{font-size:11px;line-height:1.6;white-space:normal;flex-wrap:wrap}
+  #vd-actions{flex-wrap:nowrap;gap:8px;margin-top:4px;width:100%}
+  #vd-actions .btn-green,#vd-actions .btn-dark{flex:1;justify-content:center;font-size:13px;padding:9px 8px;min-width:0}
+  #vd-actions .btn-ghost{flex:1;justify-content:center;font-size:13px;padding:9px 8px;min-width:0}
+  #vd-actions .btn-ghost:last-child{flex:0 0 auto;padding:9px 14px}
+
+  /* ── Vehicle detail stats/photos mobile ── */
   .vd-stats{grid-template-columns:1fr 1fr}
   .vd-photo-thumbs{display:none}
   .vd-photo-hero{grid-template-columns:1fr}
+  .vd-stat{padding:11px 12px}
+  .vd-stat label{font-size:10px}
+  .vd-stat span{font-size:15px}
+
+  /* ── Expense add row on mobile (cost breakdown) ── */
+  .qadd-row{grid-template-columns:1fr 1fr;gap:8px}
+  .qadd-row>:first-child{grid-column:1/-1}
+  .exp-remove{opacity:1!important}
 
   /* ── Sold page header ── */
   #pg-sold .ph-actions,#pg-deals .ph-actions{flex-direction:column;align-items:stretch;gap:6px;margin-top:8px}
@@ -1137,9 +1156,10 @@ tfoot tr:hover td{background:#f0f7ff}
             <select id="f_consign_type" onchange="updateConsignLabel()">
               <option value="flat">Flat Amount Owed</option>
               <option value="pct">% of Sale Price</option>
+              <option value="split">50/50 Profit Split</option>
             </select>
           </div>
-          <div class="fg">
+          <div class="fg" id="f_consign_fee_wrap">
             <label id="f_consign_fee_label">Amount Owed to Consignor ($)</label>
             <input id="f_consign_fee" type="number" placeholder="e.g. 500" min="0">
           </div>
@@ -1214,8 +1234,8 @@ tfoot tr:hover td{background:#f0f7ff}
             <div class="fg"><label>Consignor Name</label><input id="d_consign_name" type="text" placeholder="John Smith, ABC Autos..."></div>
           </div>
           <div class="frow" id="d_consign_fee_row" style="display:none">
-            <div class="fg"><label>Consignor Fee Type</label><select id="d_consign_type" onchange="updateDealConsignLabel()"><option value="flat">Flat Amount Owed</option><option value="pct">% of Sale Price</option></select></div>
-            <div class="fg"><label id="d_consign_fee_label">Amount Owed to Consignor ($)</label><input id="d_consign_fee" type="number" placeholder="e.g. 500" min="0"></div>
+            <div class="fg"><label>Consignor Fee Type</label><select id="d_consign_type" onchange="updateDealConsignLabel()"><option value="flat">Flat Amount Owed</option><option value="pct">% of Sale Price</option><option value="split">50/50 Profit Split</option></select></div>
+            <div class="fg" id="d_consign_fee_wrap"><label id="d_consign_fee_label">Amount Owed to Consignor ($)</label><input id="d_consign_fee" type="number" placeholder="e.g. 500" min="0"></div>
           </div>
           <div class="frow cols1"><div class="fg"><label>Deal Type</label><select id="d_type"><option>Wholesale</option><option>Retail</option><option>Auction Sale</option><option>Trade</option></select></div></div>
           <div class="frow cols1"><div class="fg">
@@ -1842,7 +1862,8 @@ function renderVehiclePage(){
       ${expRows||'<div class="cost-row"><span class="cost-label" style="color:var(--text-3);font-style:italic">No expenses yet</span><span></span></div>'}
       <div class="cost-row total-row"><span class="cost-label">All-In Cost</span><span class="cost-amount">${fmt(tc)}</span></div>
       ${c.status==='Sold'?`<div class="cost-row"><span class="cost-label">Sale Price</span><span class="cost-amount">${fmt(c.salePrice)}</span></div>
-        <div class="cost-row ${pr>=0?'profit-row':'loss-row'}"><span>${pr>=0?'✅ Profit':'❌ Loss'}</span><span class="cost-amount">${pr>=0?'+':''}${fmt(pr)}</span></div>`:''}
+        ${consignorAmount(c)>0?`<div class="cost-row" style="color:var(--red)"><span class="cost-label indent">↳ Consignor Payout ${c.consignorFeeType==='split'?'(50/50 Split)':''}</span><span class="cost-amount">− ${fmt(consignorAmount(c))}</span></div>`:''}
+        <div class="cost-row ${pr>=0?'profit-row':'loss-row'}"><span>${pr>=0?'✅ Your Profit':'❌ Loss'}</span><span class="cost-amount">${pr>=0?'+':''}${fmt(pr)}</span></div>`:''}
     </div>
   </div>
   ${qaddVD}`;
@@ -1874,7 +1895,7 @@ function renderVehiclePage(){
         <div class="vd-info-item"><label>Deal Type</label><span>${c.dealType||'—'}</span></div>
         <div class="vd-info-item"><label>Payment Method</label><span>${c.dealPayment||'—'}</span></div>
         ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&c.consignorName?`<div class="vd-info-item"><label>Consignor</label><span style="font-weight:500">${esc(c.consignorName)||esc(c.sourceName)||'—'}</span></div>`:''}
-        ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&c.consignorFeeValue?`<div class="vd-info-item"><label>Consignor Fee</label><span>${c.consignorFeeType==='pct'?(c.consignorFeeValue||0)+'% of sale':'Flat '+fmt(c.consignorFeeValue||0)} <span style="color:var(--red);font-weight:600">= ${fmt(consignorAmount(c))}</span></span></div>`:''}
+        ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&(c.consignorFeeValue||c.consignorFeeType==='split')?`<div class="vd-info-item"><label>Consignor Fee</label><span>${c.consignorFeeType==='split'?'50/50 Profit Split':c.consignorFeeType==='pct'?(c.consignorFeeValue||0)+'% of sale':'Flat '+fmt(c.consignorFeeValue||0)} <span style="color:var(--red);font-weight:600">→ ${fmt(consignorAmount(c))}</span></span></div>`:''}
         <div class="vd-info-item"><label>Sold As</label><span>${c.vehicleSoldAs||'—'}</span></div>
         ${c.dealCondition?`<div class="vd-info-item"><label>Condition</label><span>${c.dealCondition}</span></div>`:''}
         ${c.buyerContact2?`<div class="vd-info-item"><label>Contact</label><span>${c.buyerContact2}</span></div>`:''}
@@ -1997,8 +2018,12 @@ function toggleConsignFields(){
 }
 function updateConsignLabel(){
   const type=$('f_consign_type').value;
-  $('f_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
-  $('f_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+  const isSplit=type==='split';
+  $('f_consign_fee_wrap').style.display=isSplit?'none':'';
+  if(!isSplit){
+    $('f_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
+    $('f_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+  }
 }
 function toggleDealConsignFields(){
   const isConsign=$('d_pay').value==='Consignment';
@@ -2008,13 +2033,23 @@ function toggleDealConsignFields(){
 }
 function updateDealConsignLabel(){
   const type=$('d_consign_type').value;
-  $('d_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
-  $('d_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+  const isSplit=type==='split';
+  $('d_consign_fee_wrap').style.display=isSplit?'none':'';
+  if(!isSplit){
+    $('d_consign_fee_label').textContent=type==='pct'?'% of Sale Price Owed':'Amount Owed to Consignor ($)';
+    $('d_consign_fee').placeholder=type==='pct'?'e.g. 15':'e.g. 500';
+  }
 }
 function consignorAmount(c){
   // Support both new (dealPayment) and legacy (source) consignment records
   const isConsign=c.dealPayment==='Consignment'||c.source==='Consignment';
-  if(!isConsign||!c.consignorFeeValue)return 0;
+  if(!isConsign)return 0;
+  // 50/50 profit split: consignor gets half the gross profit (sale - all-in costs)
+  if(c.consignorFeeType==='split'){
+    const grossProfit=Number(c.salePrice||0)-allIn(c);
+    return Math.max(0, grossProfit*0.5);
+  }
+  if(!c.consignorFeeValue)return 0;
   if(c.consignorFeeType==='pct')return Number(c.salePrice||0)*Number(c.consignorFeeValue||0)/100;
   return Number(c.consignorFeeValue||0);
 }
