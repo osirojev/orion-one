@@ -639,6 +639,32 @@ tbody tr.clickable:hover td{background:#F0F7FF}
   .vd-photo-thumbs{flex-direction:row;width:100%;height:90px}
 }
 
+/* ── RECON / PREP CHECKLIST ── */
+.recon-progress{height:7px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0 14px}
+.recon-progress-bar{height:100%;background:var(--green);border-radius:4px;transition:width .35s cubic-bezier(.4,0,.2,1)}
+.recon-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .1s;user-select:none}
+.recon-item:hover{background:var(--bg)}
+.recon-item input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--green);flex-shrink:0}
+.recon-item-label{font-size:13px;font-weight:500;color:var(--text);transition:color .15s}
+.recon-item-icon{font-size:15px;flex-shrink:0;width:20px;text-align:center}
+.recon-item.done .recon-item-label{text-decoration:line-through;color:var(--text-3)}
+.recon-del-btn{background:none;border:none;color:var(--text-3);cursor:pointer;font-size:13px;padding:0 4px;line-height:1;opacity:0;transition:opacity .15s;margin-left:auto;flex-shrink:0}
+.recon-item:hover .recon-del-btn{opacity:1}
+.recon-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:var(--gold-bg);color:var(--gold);letter-spacing:.2px}
+.recon-badge.complete{background:var(--green-bg);color:var(--green)}
+.recon-add-row{display:flex;gap:8px;padding:10px 18px 16px;border-top:1px solid var(--border);margin-top:4px}
+.recon-add-row input{flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);background:var(--bg);font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);outline:none;transition:border-color .15s}
+.recon-add-row input:focus{border-color:var(--accent)}
+/* Recon card progress strip in inventory card */
+.vcard-recon{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.vcard-recon-bar{flex:1;height:5px;background:var(--border);border-radius:3px;overflow:hidden}
+.vcard-recon-bar-fill{height:100%;background:var(--green);border-radius:3px;transition:width .3s}
+.vcard-recon-label{font-size:10.5px;font-weight:700;color:var(--text-3);white-space:nowrap}
+.vcard-recon-label.complete{color:var(--green)}
+/* Form recon grid */
+.form-recon-grid{display:grid;grid-template-columns:1fr 1fr;gap:2px;margin-top:4px}
+@media(max-width:600px){.form-recon-grid{grid-template-columns:1fr}}
+
 /* ── TFOOT TOTALS ── */
 tfoot tr td{background:#f8fafc}
 tfoot tr:hover td{background:#f0f7ff}
@@ -1190,6 +1216,10 @@ tfoot tr:hover td{background:#f0f7ff}
         <button class="btn btn-ghost btn-sm" onclick="addExpRow()" style="margin-top:10px">+ Add Expense</button>
       </div>
       <div class="fs">
+        <div class="fs-title">🔧 Prep Checklist <span id="f_recon_prog" class="recon-badge" style="display:none;margin-left:8px;vertical-align:middle;text-transform:none;letter-spacing:0;font-size:10px"></span></div>
+        <div class="form-recon-grid" id="f_recon_list"></div>
+      </div>
+      <div class="fs">
         <div class="fs-title">📷 Photos <span style="font-size:10px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Up to 10 photos · First photo shown as cover</span></div>
         <div class="photo-upload-zone" id="photoZone" ondragover="photoDrag(event,true)" ondragleave="photoDrag(event,false)" ondrop="photoDrop(event)">
           <input type="file" id="photoInput" accept="image/*" multiple onchange="photoAdd(this.files)">
@@ -1413,6 +1443,16 @@ let cars = [], bizExps = [], recurringExps = [];
 let editId=null,dealCarId=null,dpCarId=null,curPage='dashboard',plMonth=null;
 let currentUser = null;
 const CATS=['Parts & Repair','Auction / Purchase Fees','Transport / Towing','Detailing & Cosmetic','Other'];
+const RECON_ITEMS=[
+  {key:'transport',  label:'Assign for Transport', icon:'🚚'},
+  {key:'inspection', label:'Inspection',            icon:'🔍'},
+  {key:'repairs',    label:'Repairs',               icon:'🔧'},
+  {key:'testDrive',  label:'Test Drive',            icon:'🚗'},
+  {key:'detail',     label:'Assign for Detail',     icon:'🧹'},
+  {key:'photos',     label:'Take Pictures',         icon:'📸'},
+  {key:'posted',     label:'Post The Vehicle',      icon:'📱'},
+];
+let formReconState={};
 
 // ── SYNC INDICATOR ──
 function syncStart(){$('syncBar').style.display='block';}
@@ -1943,11 +1983,12 @@ function renderVehiclePage(){
   }
 
   // ── LAYOUT ──
+  const reconCard=c.status==='Active'?reconCardHTML(c):'';
   $('vd-body').innerHTML=`
     ${photoHTML}
     ${statPills}
     <div class="vd-cols">
-      <div class="vd-col-left">${infoCard}</div>
+      <div class="vd-col-left">${infoCard}${reconCard}</div>
       <div class="vd-col-right">${costCard}${dealCard}</div>
     </div>`;
 }
@@ -1966,6 +2007,105 @@ function vdQaExp(id){
 function delExpVD(id,idx){
   const c=cars.find(x=>x.id===id);if(!c)return;
   c.expenses.splice(idx,1);save();renderVehiclePage();
+}
+
+// ── RECON / PREP CHECKLIST ──
+function reconStats(c){
+  const r=c.recon||{}, cu=c.reconCustom||[];
+  const done=RECON_ITEMS.filter(({key})=>r[key]).length+cu.filter(x=>x.done).length;
+  const total=RECON_ITEMS.length+cu.length;
+  return{done,total,pct:total>0?Math.round(done/total*100):0};
+}
+function renderFormRecon(recon){
+  formReconState={...recon};
+  const html=RECON_ITEMS.map(({key,label,icon})=>{
+    const done=!!(formReconState[key]);
+    return`<label class="recon-item${done?' done':''}" style="cursor:pointer" onclick="event.stopPropagation()">
+      <input type="checkbox" ${done?'checked':''} style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0;cursor:pointer" onchange="formReconToggle('${key}',this.checked)">
+      <span class="recon-item-icon">${icon}</span>
+      <span class="recon-item-label">${label}</span>
+    </label>`;
+  }).join('');
+  if($('f_recon_list'))$('f_recon_list').innerHTML=html;
+  updateFormReconBadge();
+}
+function formReconToggle(key,checked){
+  formReconState[key]=checked;
+  updateFormReconBadge();
+  // Update label style
+  const labels=$('f_recon_list').querySelectorAll('.recon-item');
+  RECON_ITEMS.forEach(({key:k},i)=>{
+    if(labels[i])labels[i].classList.toggle('done',!!(formReconState[k]));
+  });
+}
+function updateFormReconBadge(){
+  const done=RECON_ITEMS.filter(({key})=>formReconState[key]).length;
+  const total=RECON_ITEMS.length;
+  const badge=$('f_recon_prog');
+  if(!badge)return;
+  badge.textContent=done+'/'+total;
+  badge.style.display='inline-flex';
+  badge.className='recon-badge'+(done===total?' complete':'');
+}
+function reconCardHTML(c){
+  const r=c.recon||{}, cu=c.reconCustom||[];
+  const {done,total,pct}=reconStats(c);
+  const presetItems=RECON_ITEMS.map(({key,label,icon})=>{
+    const isDone=!!(r[key]);
+    return`<label class="recon-item${isDone?' done':''}" onclick="event.stopPropagation()">
+      <input type="checkbox" ${isDone?'checked':''} style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0;cursor:pointer" onchange="toggleReconItem('${c.id}','${key}',this.checked)">
+      <span class="recon-item-icon">${icon}</span>
+      <span class="recon-item-label">${label}</span>
+    </label>`;
+  }).join('');
+  const customItems=cu.map((item,i)=>`
+    <label class="recon-item${item.done?' done':''}" onclick="event.stopPropagation()">
+      <input type="checkbox" ${item.done?'checked':''} style="accent-color:var(--green);width:16px;height:16px;flex-shrink:0;cursor:pointer" onchange="toggleReconCustom('${c.id}',${i},this.checked)">
+      <span class="recon-item-icon">📝</span>
+      <span class="recon-item-label">${esc(item.label)}</span>
+      <button class="recon-del-btn" onclick="event.preventDefault();delReconCustom('${c.id}',${i})" title="Remove">✕</button>
+    </label>`).join('');
+  return`<div class="card">
+    <div class="card-head" style="padding-bottom:8px">
+      <div class="card-title">🔧 Prep Checklist</div>
+      <span class="recon-badge${done===total&&total>0?' complete':''}">${done}/${total} done</span>
+    </div>
+    <div style="padding:0 18px 0">
+      <div class="recon-progress"><div class="recon-progress-bar" style="width:${pct}%"></div></div>
+    </div>
+    <div style="padding:0 8px 4px;display:grid;grid-template-columns:1fr 1fr">
+      ${presetItems}
+    </div>
+    ${customItems?`<div style="padding:0 8px 4px">${customItems}</div>`:''}
+    <div class="recon-add-row" onclick="event.stopPropagation()">
+      <input id="recon_inp_${c.id}" type="text" placeholder="Add an item..." onkeydown="if(event.key==='Enter')addReconCustom('${c.id}')">
+      <button class="btn btn-ghost btn-sm" onclick="addReconCustom('${c.id}')">+ Add</button>
+    </div>
+  </div>`;
+}
+function toggleReconItem(carId,key,checked){
+  const c=cars.find(x=>x.id===carId);if(!c)return;
+  if(!c.recon)c.recon={};
+  c.recon[key]=checked;
+  save();renderVehiclePage();
+}
+function toggleReconCustom(carId,idx,checked){
+  const c=cars.find(x=>x.id===carId);if(!c)return;
+  if(!c.reconCustom||!c.reconCustom[idx])return;
+  c.reconCustom[idx].done=checked;
+  save();renderVehiclePage();
+}
+function addReconCustom(carId){
+  const c=cars.find(x=>x.id===carId);if(!c)return;
+  const inp=$('recon_inp_'+carId);
+  const label=inp?.value.trim();if(!label)return;
+  if(!c.reconCustom)c.reconCustom=[];
+  c.reconCustom.push({label,done:false});
+  save();renderVehiclePage();
+}
+function delReconCustom(carId,idx){
+  const c=cars.find(x=>x.id===carId);if(!c)return;
+  c.reconCustom.splice(idx,1);save();renderVehiclePage();
 }
 
 function vdAddPayment(id){
@@ -2118,6 +2258,7 @@ function openAddVehicle(){
   $('f_consign_fee').value='';$('f_consign_type').value='flat';
   $('expList').innerHTML='';$('vinPill').className='vin-pill';$('vinCtr').textContent='0/17';
   pendingPhotos=[];renderPhotoThumbs();
+  renderFormRecon({});
   addExpRow();openModal('mVehicle');
 }
 
@@ -2139,6 +2280,7 @@ function openEditVehicle(id){
   if(!(c.expenses||[]).length)addExpRow();
   $('vinCtr').textContent=(c.vin||'').length+'/17';$('vinPill').className='vin-pill';
   pendingPhotos=[...(c.photos||[])];renderPhotoThumbs();
+  renderFormRecon(c.recon||{});
   openModal('mVehicle');
 }
 
@@ -2199,12 +2341,15 @@ function saveVehicle(){
     notes:$('f_notes').value.trim(),
     expenses:getExps(),
     photos:[...pendingPhotos],
+    recon:{...formReconState},
     status:'Active'
   };
   if(editId){
     const idx=cars.findIndex(c=>c.id===editId);
     const old=cars[idx];
     d.id=editId;
+    // Preserve custom recon items added from the detail page
+    if(old.reconCustom)d.reconCustom=old.reconCustom;
     if(old.status==='Sold'){
       d.status='Sold';
       Object.assign(d,{salePrice:old.salePrice,buyer:old.buyer,buyerContact:old.buyerContact,soldDate:old.soldDate,buyerPhone:old.buyerPhone,buyerEmail:old.buyerEmail,buyerContact2:old.buyerContact2,buyerLicense:old.buyerLicense,buyerAddress:old.buyerAddress,dealPayment:old.dealPayment,dealType:old.dealType,dealNotes:old.dealNotes,consignorName:old.consignorName,consignorFeeType:old.consignorFeeType,consignorFeeValue:old.consignorFeeValue,dealPayments:old.dealPayments,dealPaidFull:old.dealPaidFull,vehicleSoldAs:old.vehicleSoldAs,dealCondition:old.dealCondition});
@@ -3456,6 +3601,7 @@ function renderInventory(){
         <div class="vcard-item"><label>Days In</label><span>${daysIn(c.purchaseDate,true)}</span></div>
       </div>
       ${c.sourceName&&c.source!=='Consignment'?`<div style="font-size:11px;color:var(--text-3);margin-bottom:10px">📍 ${esc(c.sourceName)}</div>`:''}
+      ${(()=>{const{done,total,pct}=reconStats(c);return`<div class="vcard-recon"><span class="vcard-recon-label${done===total?' complete':''}">🔧 ${done}/${total}</span><div class="vcard-recon-bar"><div class="vcard-recon-bar-fill" style="width:${pct}%"></div></div></div>`;})()}
       <div class="vcard-actions" onclick="event.stopPropagation()">
         <button class="btn btn-ghost btn-sm" onclick="openVehiclePage('${c.id}','inventory')">View Details</button>
         <button class="btn btn-green btn-sm" onclick="openDeal('${c.id}')">🤝 Record Sale</button>
