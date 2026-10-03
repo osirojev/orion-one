@@ -686,6 +686,48 @@ tfoot tr:hover td{background:#f0f7ff}
 }
 
 /* ── UI polish (2026-10) ── */
+.ic-clock{--i:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22black%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Ccircle cx=%2212%22 cy=%2212%22 r=%2210%22/%3E%3Cpolyline points=%2212 6 12 12 16 14%22/%3E%3C/svg%3E")}
+/* aging alert */
+.aging-alert{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--shadow-sm);margin:16px 0;overflow:hidden}
+.aging-head{display:flex;align-items:center;gap:12px;padding:14px 18px}
+.aging-icon{width:36px;height:36px;border-radius:8px;background:var(--gold-bg);color:var(--gold);display:grid;place-items:center;flex-shrink:0}
+.aging-icon .ic{width:18px;height:18px}
+.aging-title{font-size:14px;font-weight:700;color:var(--text)}
+.aging-sub{font-size:12px;color:var(--text-3);margin-top:1px}
+.aging-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:8px;padding:0 18px 14px}
+.aging-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;font-family:inherit;text-align:left;min-width:0}
+.aging-row:hover{border-color:var(--accent)}
+.aging-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aging-cost{font-size:12px;color:var(--text-2);font-family:'DM Mono',monospace}
+/* P&L 12-month chart */
+.plc-card{margin-bottom:18px}
+.plc-wrap{position:relative;padding:4px 12px 10px}
+.plc-svg{width:100%;height:auto;display:block;overflow:visible}
+.plc-tick{font-size:10px;fill:var(--text-3);font-family:'DM Sans',sans-serif}
+.plc-mo{font-size:10.5px;fill:var(--text-3);font-family:'DM Sans',sans-serif}
+.plc-mo.sel{fill:var(--text);font-weight:700}
+.plc-val{font-size:11px;font-weight:700;fill:var(--text);font-family:'DM Sans',sans-serif}
+.plc-hit{fill:transparent;cursor:pointer}
+.plc-hit:hover{fill:rgba(37,99,235,.06)}
+.plc-tip{position:absolute;display:none;pointer-events:none;background:#0F172A;color:#fff;font-size:12px;line-height:1.55;padding:8px 10px;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.2);min-width:140px;z-index:5}
+.plc-tip-mo{font-weight:700;margin-bottom:2px}
+@media(max-width:600px){
+  .aging-head{padding:12px 14px;flex-wrap:wrap}
+  .aging-list{grid-template-columns:1fr;padding:0 14px 12px}
+  /* compact inventory list on phones */
+  .v-grid{gap:8px}
+  .vcard{display:grid;grid-template-columns:96px 1fr;column-gap:12px;padding:12px 12px 10px;align-items:start}
+  .vcard>.vcard-photo,.vcard>.vcard-no-photo{grid-column:1;grid-row:1/4;width:96px;height:72px;margin:0;border-radius:8px}
+  .vcard>.vcard-no-photo span:not(.ic){display:none}
+  .vcard>.vcard-no-photo .ic{width:22px;height:22px}
+  .vcard>.vcard-name,.vcard>.vcard-vin,.vcard>.vcard-grid{grid-column:2}
+  .vcard>.vcard-name{font-size:14px;margin:0 0 2px;line-height:1.25}
+  .vcard>.vcard-vin{font-size:10px;margin:0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .vcard>.vcard-grid{padding:0;border:0;margin:0;gap:4px 10px}
+  .vcard>.vcard-grid .vcard-item:nth-child(-n+2){display:none}
+  .vcard>.vcard-grid .vcard-item span{font-size:13px}
+  .vcard>.vcard-top,.vcard>.vcard-recon,.vcard>.vcard-actions,.vcard>div[style*="margin-bottom:10px"]{display:none}
+}
 .ic{display:inline-block;width:1.1em;height:1.1em;flex-shrink:0;vertical-align:-.18em;background:currentColor;-webkit-mask:var(--i) center/contain no-repeat;mask:var(--i) center/contain no-repeat}
 .ic-car{--i:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22black%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Cpath d=%22M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2%22/%3E%3Ccircle cx=%227%22 cy=%2217%22 r=%222%22/%3E%3Cpath d=%22M9 17h6%22/%3E%3Ccircle cx=%2217%22 cy=%2217%22 r=%222%22/%3E%3C/svg%3E")}
 .ic-briefcase{--i:url("data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22black%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22%3E%3Crect width=%2220%22 height=%2214%22 x=%222%22 y=%227%22 rx=%222%22/%3E%3Cpath d=%22M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16%22/%3E%3C/svg%3E")}
@@ -789,6 +831,7 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="page-body">
       <div id="onboardWrap"></div>
       <div class="stats-grid" id="dashStats"></div>
+      <div id="dashAging"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px;align-items:start">
         <div class="card">
           <div class="card-head">
@@ -3593,6 +3636,7 @@ function renderDash(){
     <div class="stat-card" style="--stat-accent:var(--green);cursor:pointer" onclick="nav('sold',$('nb-sold'))"><div class="stat-icon" style="background:var(--green-bg);color:var(--green)"><span class="ic ic-dollar"></span></div><div class="stat-label">Total Revenue</div><div class="stat-value">${fmtShort(totSales)}</div><div class="stat-meta">${sold.length} vehicle${sold.length!==1?'s':''} sold</div></div>
     <div class="stat-card" style="--stat-accent:${netProfit>=0?'var(--green)':'var(--red)'};cursor:pointer" onclick="nav('pl',$('nb-pl'))"><div class="stat-icon" style="background:${netProfit>=0?'var(--green-bg)':'var(--red-bg)'};color:${netProfit>=0?'var(--green)':'var(--red)'}"><span class="ic ic-trend"></span></div><div class="stat-label">Net Profit</div><div class="stat-value" style="color:${netProfit>=0?'var(--green)':'var(--red)'}">${netProfit>=0?'+':''}${fmtShort(netProfit)}</div><div class="stat-meta">${hasOutstanding?`<span style="color:var(--gold);font-weight:600">${fmt(outstandingBal)} outstanding</span>`:avgDays!==null?`avg ${avgDays}d to sell`:'all time'}</div></div>`;
 
+  if($('dashAging'))$('dashAging').innerHTML=agingAlertHTML(act);
   $('dashInv').innerHTML=act.slice(0,6).map(c=>`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td><strong>${esc(cname(c))}</strong></td><td><span style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${esc(c.stock)||'—'}</span></td><td><strong>${fmt(allIn(c))}</strong></td><td>${daysIn(c.purchaseDate,true)}</td></tr>`).join('')||`<tr><td colspan="4"><div class="empty"><div class="empty-icon">🚗</div><div class="empty-title">No vehicles yet</div><div class="empty-sub">Add your first vehicle to get started</div><button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button></div></td></tr>`;
 
   // Sort by most recent sale date
@@ -3612,12 +3656,14 @@ function renderInventory(){
   const cntConsign=allActive.filter(c=>c.source==='Consignment'||c.purchaseType==='Consignment').length;
   const cntCash=allActive.filter(c=>c.purchaseType==='Cash'||(c.source!=='Consignment'&&!c.purchaseType)).length;
   const cntFloor=allActive.filter(c=>c.purchaseType==='Floored').length;
+  const cntAged=allActive.filter(c=>daysNum(c.purchaseDate)>=AGED_DAYS).length;
   if($('invChips')){
     $('invChips').innerHTML=`
       <button class="inv-chip${chip==='all'?' active':''}" onclick="invChipFilter('all')">All <span class="chip-ct">${cntAll}</span></button>
       <button class="inv-chip${chip==='cash'?' active':''}" onclick="invChipFilter('cash')" style="${chip!=='cash'?'border-color:#16a34a;color:#15803d':''}">💵 Cash <span class="chip-ct">${cntCash}</span></button>
       <button class="inv-chip${chip==='consign'?' active':''}" onclick="invChipFilter('consign')" style="${chip!=='consign'?'border-color:#0369a1;color:#0369a1':''}">🤝 Consignment <span class="chip-ct">${cntConsign}</span></button>
       ${cntFloor>0?`<button class="inv-chip${chip==='floor'?' active':''}" onclick="invChipFilter('floor')" style="${chip!=='floor'?'border-color:#b45309;color:#b45309':''}">📋 Floored <span class="chip-ct">${cntFloor}</span></button>`:''}
+      ${cntAged>0||chip==='aged'?`<button class="inv-chip${chip==='aged'?' active':''}" onclick="invChipFilter('aged')" style="${chip!=='aged'?'border-color:#b45309;color:#b45309':''}"><span class="ic ic-clock"></span> ${AGED_DAYS}+ days <span class="chip-ct">${cntAged}</span></button>`:''}
     `;
   }
   // Hidden input to track chip selection across renders
@@ -3627,6 +3673,7 @@ function renderInventory(){
   if(chip==='cash')list=list.filter(c=>c.purchaseType==='Cash'||(c.source!=='Consignment'&&!c.purchaseType));
   else if(chip==='consign')list=list.filter(c=>c.source==='Consignment'||c.purchaseType==='Consignment');
   else if(chip==='floor')list=list.filter(c=>c.purchaseType==='Floored');
+  else if(chip==='aged')list=list.filter(c=>daysNum(c.purchaseDate)>=AGED_DAYS);
   // Apply source dropdown filter
   if(f)list=list.filter(c=>c.source===f);
   if(q)list=list.filter(c=>[c.vin,c.make,c.model,c.stock,c.color,c.sourceName,c.year,c.source].join(' ').toLowerCase().includes(q));
@@ -3729,7 +3776,7 @@ function renderPL(){
   const net=rev-costs;
   const byCat={};
   ms.forEach(c=>(c.expenses||[]).forEach(e=>{byCat[e.category]=(byCat[e.category]||0)+Number(e.amount||0);}));
-  $('plContent').innerHTML=`
+  $('plContent').innerHTML=plChartHTML(sold)+`
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:18px">
       <div class="card"><div class="pl-hero"><div class="pl-hero-label">Revenue</div><div class="pl-hero-val" style="color:var(--blue)">${fmtShort(rev)}</div><div class="pl-hero-sub">${ms.length} vehicle${ms.length!==1?'s':''} sold</div></div></div>
       <div class="card"><div class="pl-hero"><div class="pl-hero-label">Total Costs</div><div class="pl-hero-val" style="color:var(--text-2)">${fmtShort(costs)}</div><div class="pl-hero-sub">purchase + expenses</div></div></div>
@@ -3752,6 +3799,73 @@ function renderPL(){
       </table></div>
     </div>`;
 }
+
+// ── AGING (cars sitting too long) ──
+const AGED_DAYS=60;
+function daysNum(d){if(!d)return 0;return Math.max(0,Math.floor((Date.now()-new Date(d+'T12:00:00'))/86400000));}
+function agingAlertHTML(act){
+  const aged=act.filter(c=>daysNum(c.purchaseDate)>=AGED_DAYS).sort((a,b)=>daysNum(b.purchaseDate)-daysNum(a.purchaseDate));
+  if(!aged.length)return'';
+  const tied=aged.reduce((s,c)=>s+allIn(c),0);
+  const over90=aged.filter(c=>daysNum(c.purchaseDate)>=90).length;
+  return`<div class="aging-alert">
+    <div class="aging-head">
+      <div class="aging-icon"><span class="ic ic-clock"></span></div>
+      <div style="flex:1;min-width:0"><div class="aging-title">${aged.length} car${aged.length!==1?'s':''} in stock ${AGED_DAYS}+ days</div>
+      <div class="aging-sub">${fmtShort(tied)} tied up${over90?` · ${over90} over 90 days`:''}</div></div>
+      <button class="btn btn-ghost btn-sm" onclick="showAged()">View all →</button>
+    </div>
+    <div class="aging-list">${aged.slice(0,6).map(c=>`<button class="aging-row" onclick="openVehiclePage('${c.id}','dashboard')"><span class="aging-name">${esc(cname(c))}</span><span class="aging-cost">${fmtShort(allIn(c))}</span>${daysIn(c.purchaseDate,true)}</button>`).join('')}</div>
+  </div>`;
+}
+function showAged(){nav('inventory',$('nb-inventory'));if($('invSort'))$('invSort').value='days';if($('mt-inventory'))mobTabActive($('mt-inventory'));invChipFilter('aged');}
+
+// ── P&L 12-MONTH CHART ──
+function plChartHTML(sold){
+  const now=new Date(),data=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const m=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    const ms=sold.filter(c=>c.soldDate.startsWith(m));
+    const rev=ms.reduce((s,c)=>s+Number(c.salePrice||0),0),cost=ms.reduce((s,c)=>s+allIn(c),0);
+    data.push({m,n:ms.length,rev,cost,net:rev-cost});
+  }
+  window.__plData=data;
+  const W=window.innerWidth<600?360:760,H=window.innerWidth<600?190:210,pL=W<500?40:52,pR=8,pT=18,pB=26;
+  const maxV=Math.max(0,...data.map(d=>d.net)),minV=Math.min(0,...data.map(d=>d.net));
+  const raw=((maxV-minV)||1000)/4,mag=Math.pow(10,Math.floor(Math.log10(raw)));
+  const step=[1,2,2.5,5,10].map(x=>x*mag).find(x=>x>=raw);
+  const top=Math.max(step,Math.ceil(maxV/step)*step),bot=Math.floor(minV/step)*step;
+  const y=v=>pT+(top-v)/(top-bot)*(H-pT-pB);
+  const band=(W-pL-pR)/data.length,bw=Math.min(24,band*.62);
+  const k=v=>{const a=Math.abs(v);return(v<0?'-':'')+'$'+(a>=1000?(+(a/1000).toFixed(1))+'k':a);};
+  let g='',bars='',lab='',hit='';
+  for(let v=bot;v<=top+step/1e6;v+=step)g+=`<line x1="${pL}" x2="${W-pR}" y1="${y(v)}" y2="${y(v)}" stroke="${Math.abs(v)<step/1e6?'#CBD5E1':'#EEF2F6'}" stroke-width="1"/><text x="${pL-8}" y="${y(v)+3.5}" text-anchor="end" class="plc-tick">${Math.abs(v)<step/1e6?'$0':k(v)}</text>`;
+  data.forEach((d,i)=>{
+    const x=pL+band*i+(band-bw)/2,y0=y(0),y1=y(d.net),h=Math.abs(y1-y0),r=Math.min(4,h,bw/2),sel=d.m===plMonth;
+    const fill=sel?'var(--accent)':'#9DB8F2';
+    if(h>0.5){
+      bars+=d.net>=0
+        ?`<path d="M${x},${y0}V${y1+r}Q${x},${y1} ${x+r},${y1}H${x+bw-r}Q${x+bw},${y1} ${x+bw},${y1+r}V${y0}Z" fill="${fill}"/>`
+        :`<path d="M${x},${y0}V${y1-r}Q${x},${y1} ${x+r},${y1}H${x+bw-r}Q${x+bw},${y1} ${x+bw},${y1-r}V${y0}Z" fill="${fill}"/>`;
+    }
+    if(sel&&d.n)lab+=`<text x="${x+bw/2}" y="${d.net>=0?y1-6:y1+13}" text-anchor="middle" class="plc-val">${d.net>=0?'+':''}${k(d.net)}</text>`;
+    const mo=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.m.slice(5)-1];
+    lab+=`<text x="${x+bw/2}" y="${H-8}" text-anchor="middle" class="plc-mo${sel?' sel':''}">${W<500?mo[0]:mo}</text>`;
+    hit+=`<rect class="plc-hit" x="${pL+band*i}" y="${pT-8}" width="${band}" height="${H-pT-pB+8}" onmouseenter="plTip(${i},event)" onmousemove="plTip(${i},event)" onmouseleave="plTipHide()" onclick="plPick(${i})"/>`;
+  });
+  const best=[...data].sort((a,b)=>b.net-a.net)[0];
+  return`<div class="card plc-card"><div class="card-head"><div><div class="card-title"><span class="ic ic-trend"></span>Net profit by month</div><div class="card-sub">Last 12 months · ${fmtShort(data.reduce((s,d)=>s+d.net,0))} total · click a month for details</div></div></div>
+    <div class="plc-wrap"><svg viewBox="0 0 ${W} ${H}" class="plc-svg" role="img" aria-label="Net profit by month for the last 12 months. Best month ${fmtMo(best.m)} at ${fmtShort(best.net)}.">${g}${bars}${lab}${hit}</svg><div class="plc-tip" id="plcTip"></div></div></div>`;
+}
+function plTip(i,e){
+  const d=window.__plData[i],t=$('plcTip');if(!t)return;
+  t.innerHTML=`<div class="plc-tip-mo">${fmtMo(d.m)}</div><div>${d.n} car${d.n!==1?'s':''} sold</div><div>Revenue ${fmtShort(d.rev)}</div><div>Costs ${fmtShort(d.cost)}</div><div><b>Net ${d.net>=0?'+':''}${fmtShort(d.net)}</b></div>`;
+  const r=t.parentElement.getBoundingClientRect();let x=e.clientX-r.left+14;if(x>r.width-160)x=e.clientX-r.left-160;
+  t.style.left=x+'px';t.style.top=Math.max(0,e.clientY-r.top-20)+'px';t.style.display='block';
+}
+function plTipHide(){const t=$('plcTip');if(t)t.style.display='none';}
+function plPick(i){const d=window.__plData[i];if(!d||!d.n)return;plMonth=d.m;renderPL();}
 
 function fmtMo(m){const[y,mo]=m.split('-');return['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(mo)-1]+' '+y;}
 
