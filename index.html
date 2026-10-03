@@ -1220,7 +1220,7 @@ tfoot tr:hover td{background:#f0f7ff}
         <div class="form-recon-grid" id="f_recon_list"></div>
       </div>
       <div class="fs">
-        <div class="fs-title">📷 Photos <span style="font-size:10px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Up to 10 photos · First photo shown as cover</span></div>
+        <div class="fs-title">📷 Photos <span style="font-size:10px;font-weight:500;color:var(--text-3);text-transform:none;letter-spacing:0">Up to 20 photos · First photo shown as cover</span></div>
         <div class="photo-upload-zone" id="photoZone" ondragover="photoDrag(event,true)" ondragleave="photoDrag(event,false)" ondrop="photoDrop(event)">
           <input type="file" id="photoInput" accept="image/*" multiple onchange="photoAdd(this.files)">
           <div class="photo-upload-icon">📷</div>
@@ -3446,9 +3446,9 @@ function photoDrop(e){
   photoAdd(e.dataTransfer.files);
 }
 function photoAdd(files){
-  const MAX=10;
+  const MAX=20;
   const remaining=MAX-pendingPhotos.length;
-  if(remaining<=0){toast('Maximum 10 photos per vehicle','er');return;}
+  if(remaining<=0){toast('Maximum 20 photos per vehicle','er');return;}
   const toProcess=[...files].slice(0,remaining);
   let loaded=0;
   toProcess.forEach(file=>{
@@ -3473,7 +3473,7 @@ function renderPhotoThumbs(){
     </div>`).join('');
   // Show count hint
   if(pendingPhotos.length>0){
-    $('photoZone').querySelector('.photo-upload-label').textContent=`${pendingPhotos.length}/10 photos added — click to add more`;
+    $('photoZone').querySelector('.photo-upload-label').textContent=`${pendingPhotos.length}/20 photos added — click to add more`;
   } else {
     $('photoZone').querySelector('.photo-upload-label').textContent='Click to upload or drag & drop';
   }
