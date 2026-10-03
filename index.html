@@ -10,7 +10,7 @@
 <meta name="theme-color" content="#1A3056">
 <title>Orion One — Wholesale Management</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <style>
@@ -1463,18 +1463,23 @@ async function save(){
   if(!currentUser) return;
   syncStart();
   try {
-    await Promise.all([
+    cars.forEach(stripTags); bizExps.forEach(stripTags); recurringExps.forEach(stripTags);
+    const results = await Promise.all([
       _supa.from('cars').upsert(cars.map(c=>({id:c.id,user_id:currentUser.id,data:c})),{onConflict:'id'}),
       _supa.from('biz_exps').upsert(bizExps.map(e=>({id:e.id,user_id:currentUser.id,data:e})),{onConflict:'id'}),
       _supa.from('recurring_exps').upsert(recurringExps.map(r=>({id:r.id,user_id:currentUser.id,data:r})),{onConflict:'id'})
     ]);
+    // Supabase returns errors instead of throwing — surface them so failed saves are never silent
+    const bad = results.find(r=>r&&r.error);
+    if(bad) throw bad.error;
   } catch(e){ toast('Sync error — check connection','er'); console.error(e); }
   finally{ syncEnd(); }
 }
 
 async function deleteFromCloud(table, id){
   if(!currentUser) return;
-  await _supa.from(table).delete().eq('id', id);
+  const { error } = await _supa.from(table).delete().eq('id', id).eq('user_id', currentUser.id);
+  if(error){ toast('Delete failed — check connection','er'); console.error(error); }
 }
 
 // ── LOAD ALL DATA FROM CLOUD ──
@@ -1486,9 +1491,11 @@ async function loadData(){
       _supa.from('biz_exps').select('data').eq('user_id', currentUser.id),
       _supa.from('recurring_exps').select('data').eq('user_id', currentUser.id)
     ]);
-    cars = (carsRes.data||[]).map(r=>r.data);
-    bizExps = (expRes.data||[]).map(r=>r.data);
-    recurringExps = (recRes.data||[]).map(r=>r.data);
+    const loadErr = carsRes.error||expRes.error||recRes.error;
+    if(loadErr) throw loadErr;
+    cars = (carsRes.data||[]).map(r=>stripTags(r.data));
+    bizExps = (expRes.data||[]).map(r=>stripTags(r.data));
+    recurringExps = (recRes.data||[]).map(r=>stripTags(r.data));
   } catch(e){ toast('Failed to load data','er'); console.error(e); }
   finally{ syncEnd(); }
 }
@@ -1597,6 +1604,14 @@ function esc(str){
   if(str==null||str===undefined)return'—';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+// Defense-in-depth: strip < and > from every stored text field (cars, expenses, imports)
+// so no record — typed, CSV-imported, or auto-imported from ACV emails — can inject HTML/script.
+function stripTags(v){
+  if(typeof v==='string') return v.startsWith('data:')?v:v.replace(/[<>]/g,'');
+  if(Array.isArray(v)) return v.map(stripTags);
+  if(v&&typeof v==='object'){ for(const k of Object.keys(v)) v[k]=stripTags(v[k]); return v; }
+  return v;
+}
 function fmt(n){return '$'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
 function fmtShort(n){return fmt(n);}
 function expTotal(c){return(c.expenses||[]).reduce((s,e)=>s+Number(e.amount||0),0);}
@@ -1672,7 +1687,7 @@ function renderDP(){
   if(c.status==='Sold'){
     const prVal=profit(c);
     dealRibbon=`<div class="deal-ribbon"><div class="deal-ribbon-label">Deal Summary</div><div class="deal-ribbon-grid">
-      <div class="deal-ribbon-item"><label>Buyer</label><span style="font-size:13px;font-family:'DM Sans',sans-serif">${c.buyer||'—'}</span></div>
+      <div class="deal-ribbon-item"><label>Buyer</label><span style="font-size:13px;font-family:'DM Sans',sans-serif">${esc(c.buyer||'—')}</span></div>
       <div class="deal-ribbon-item"><label>Sale Price</label><span>${fmt(c.salePrice)}</span></div>
       <div class="deal-ribbon-item"><label>Date Sold</label><span style="font-size:13px;font-family:'DM Sans',sans-serif">${c.soldDate||'—'}</span></div>
       <div class="deal-ribbon-item"><label>${prVal>=0?'Profit':'Loss'}</label><span class="${prVal>=0?'profit-val':'loss-val'}">${prVal>=0?'+':''}${fmt(prVal)}</span></div>
@@ -1682,11 +1697,11 @@ function renderDP(){
   let buyerSection='';
   if(c.status==='Sold'&&(c.buyerPhone||c.buyerEmail||c.buyerLicense||c.buyerAddress||c.buyerContact2||c.dealPayment)){
     buyerSection=`<div class="dp-section"><div class="dp-section-title">👤 Buyer Details</div><div class="dp-grid">
-      ${c.buyerContact2?`<div class="dp-item"><label>Contact</label><span>${c.buyerContact2}</span></div>`:''}
-      ${c.buyerPhone?`<div class="dp-item"><label>Phone</label><span>${c.buyerPhone}</span></div>`:''}
-      ${c.buyerEmail?`<div class="dp-item"><label>Email</label><span style="font-size:12px">${c.buyerEmail}</span></div>`:''}
-      ${c.buyerLicense?`<div class="dp-item"><label>License #</label><span>${c.buyerLicense}</span></div>`:''}
-      ${c.buyerAddress?`<div class="dp-item" style="grid-column:1/-1"><label>Address</label><span>${c.buyerAddress}</span></div>`:''}
+      ${c.buyerContact2?`<div class="dp-item"><label>Contact</label><span>${esc(c.buyerContact2)}</span></div>`:''}
+      ${c.buyerPhone?`<div class="dp-item"><label>Phone</label><span>${esc(c.buyerPhone)}</span></div>`:''}
+      ${c.buyerEmail?`<div class="dp-item"><label>Email</label><span style="font-size:12px">${esc(c.buyerEmail)}</span></div>`:''}
+      ${c.buyerLicense?`<div class="dp-item"><label>License #</label><span>${esc(c.buyerLicense)}</span></div>`:''}
+      ${c.buyerAddress?`<div class="dp-item" style="grid-column:1/-1"><label>Address</label><span>${esc(c.buyerAddress)}</span></div>`:''}
       ${c.dealPayment?`<div class="dp-item"><label>Payment</label><span>${c.dealPayment}</span></div>`:''}
       ${c.dealType?`<div class="dp-item"><label>Deal Type</label><span>${c.dealType}</span></div>`:''}
     </div></div>`;
@@ -1737,10 +1752,10 @@ function renderDP(){
       <div class="dp-item"><label>VIN</label><span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.3px">${c.vin||'—'}</span></div>
       <div class="dp-item"><label>Color</label><span>${c.color||'—'}</span></div>
       <div class="dp-item"><label>Mileage</label><span>${c.mileage?Number(c.mileage).toLocaleString()+' mi':'—'}</span></div>
-      <div class="dp-item"><label>Source</label><span>${c.source}${c.sourceName?' · '+c.sourceName:''}</span></div>
+      <div class="dp-item"><label>Source</label><span>${c.source}${c.sourceName?' · '+esc(c.sourceName):''}</span></div>
       <div class="dp-item"><label>Purchase Date</label><span>${c.purchaseDate||'—'}</span></div>
       <div class="dp-item"><label>Days in Stock</label><span>${daysIn(c.purchaseDate)}</span></div>
-    </div>${c.notes?`<div class="dp-notes">${c.notes}</div>`:''}</div>
+    </div>${c.notes?`<div class="dp-notes">${esc(c.notes)}</div>`:''}</div>
     ${buyerSection}
     <div class="dp-section"><div class="dp-section-title">💰 Cost Breakdown <span style="font-weight:400;color:var(--text-3);font-size:10px">${(c.expenses||[]).length} expense${(c.expenses||[]).length!==1?'s':''}</span></div>
       <div class="cost-list">
@@ -1856,10 +1871,10 @@ function renderVehiclePage(){
       <div class="vd-info-item"><label>VIN</label><span style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:.4px">${c.vin||'—'}</span></div>
       <div class="vd-info-item"><label>Stock #</label><span>${c.stock||'—'}</span></div>
       <div class="vd-info-item"><label>Days in Stock</label><span>${daysIn(c.purchaseDate)}</span></div>
-      <div class="vd-info-item"><label>Source</label><span>${c.source||'—'}${c.sourceName?' · '+c.sourceName:''}</span></div>
+      <div class="vd-info-item"><label>Source</label><span>${c.source||'—'}${c.sourceName?' · '+esc(c.sourceName):''}</span></div>
       <div class="vd-info-item"><label>Purchase Date</label><span>${c.purchaseDate||'—'}</span></div>
     </div>
-    ${c.notes?`<div style="padding:0 18px 18px"><div style="background:var(--bg);border-radius:var(--r-sm);padding:12px;font-size:13px;color:var(--text-2);line-height:1.5">${c.notes}</div></div>`:''}
+    ${c.notes?`<div style="padding:0 18px 18px"><div style="background:var(--bg);border-radius:var(--r-sm);padding:12px;font-size:13px;color:var(--text-2);line-height:1.5">${esc(c.notes)}</div></div>`:''}
   </div>`;
 
   // ── COST BREAKDOWN CARD ──
@@ -1929,7 +1944,7 @@ function renderVehiclePage(){
         ${paidFull?'<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#DCFCE7;color:#15803D">✓ Paid in Full</span>':Number(c.salePrice||0)>0&&paid>0?'<span style="font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;background:#FEF3C7;color:#B45309">Balance: '+fmt(bal)+'</span>':''}
       </div>
       <div class="vd-info-grid" style="padding:18px">
-        <div class="vd-info-item"><label>Buyer</label><span>${c.buyer||'—'}</span></div>
+        <div class="vd-info-item"><label>Buyer</label><span>${esc(c.buyer||'—')}</span></div>
         <div class="vd-info-item"><label>Sale Price</label><span>${fmt(c.salePrice)}</span></div>
         <div class="vd-info-item"><label>Date Sold</label><span>${c.soldDate||'—'}</span></div>
         <div class="vd-info-item"><label>Deal Type</label><span>${c.dealType||'—'}</span></div>
@@ -1938,11 +1953,11 @@ function renderVehiclePage(){
         ${(c.dealPayment==='Consignment'||c.source==='Consignment')&&(c.consignorFeeValue||c.consignorFeeType==='split')?`<div class="vd-info-item"><label>Consignor Fee</label><span>${c.consignorFeeType==='split'?'50/50 Profit Split':c.consignorFeeType==='pct'?(c.consignorFeeValue||0)+'% of sale':'Flat '+fmt(c.consignorFeeValue||0)} <span style="color:var(--red);font-weight:600">→ ${fmt(consignorAmount(c))}</span></span></div>`:''}
         <div class="vd-info-item"><label>Sold As</label><span>${c.vehicleSoldAs||'—'}</span></div>
         ${c.dealCondition?`<div class="vd-info-item"><label>Condition</label><span>${c.dealCondition}</span></div>`:''}
-        ${c.buyerContact2?`<div class="vd-info-item"><label>Contact</label><span>${c.buyerContact2}</span></div>`:''}
-        ${c.buyerPhone?`<div class="vd-info-item"><label>Phone</label><span>${c.buyerPhone}</span></div>`:''}
-        ${c.buyerEmail?`<div class="vd-info-item"><label>Email</label><span style="font-size:12px">${c.buyerEmail}</span></div>`:''}
-        ${c.buyerLicense?`<div class="vd-info-item"><label>License #</label><span>${c.buyerLicense}</span></div>`:''}
-        ${c.buyerAddress?`<div class="vd-info-item" style="grid-column:1/-1"><label>Address</label><span>${c.buyerAddress}</span></div>`:''}
+        ${c.buyerContact2?`<div class="vd-info-item"><label>Contact</label><span>${esc(c.buyerContact2)}</span></div>`:''}
+        ${c.buyerPhone?`<div class="vd-info-item"><label>Phone</label><span>${esc(c.buyerPhone)}</span></div>`:''}
+        ${c.buyerEmail?`<div class="vd-info-item"><label>Email</label><span style="font-size:12px">${esc(c.buyerEmail)}</span></div>`:''}
+        ${c.buyerLicense?`<div class="vd-info-item"><label>License #</label><span>${esc(c.buyerLicense)}</span></div>`:''}
+        ${c.buyerAddress?`<div class="vd-info-item" style="grid-column:1/-1"><label>Address</label><span>${esc(c.buyerAddress)}</span></div>`:''}
       </div>
       ${c.dealNotes?`<div style="padding:0 18px 18px"><div class="dp-notes">${c.dealNotes}</div></div>`:''}
       <div style="padding:0 18px 18px">
@@ -2289,14 +2304,14 @@ function addExpRow(e={}){
   const row=document.createElement('div');row.className='exp-row';
   row.innerHTML=`<select>${CATS.map(c=>`<option${e.category===c?' selected':''}>${c}</option>`).join('')}</select>
     <div class="ac-wrap">
-      <input id="${vid}" type="text" placeholder="Vendor (e.g. Autozone)" value="${e.vendor||''}" autocomplete="off"
+      <input id="${vid}" type="text" placeholder="Vendor (e.g. Autozone)" value="${esc(e.vendor||'')}" autocomplete="off"
         oninput="acShowExp('${vid}','${vid}_dd')"
         onkeydown="acKey(event,'${vid}','${vid}_dd')"
         onblur="acBlur('${vid}_dd')"
         onfocus="acShowExp('${vid}','${vid}_dd')">
       <div id="${vid}_dd" class="ac-list"></div>
     </div>
-    <input type="text" placeholder="Description (e.g. Brake pads)" value="${e.desc||''}">
+    <input type="text" placeholder="Description (e.g. Brake pads)" value="${esc(e.desc||'')}">
     <input type="number" placeholder="Amount $" value="${e.amount||''}" step="0.01" min="0">
     <button class="exp-del-btn" onclick="this.closest('.exp-row').remove()" title="Remove">✕</button>`;
   $('expList').appendChild(row);
@@ -3593,7 +3608,7 @@ function renderInventory(){
       ${c.photos&&c.photos.length?`<img class="vcard-photo" src="${c.photos[0]}" alt="${esc(cname(c))}" onclick="event.stopPropagation();openLightboxArr(${JSON.stringify(c.photos).replace(/"/g,'&quot;')},0)">`:`<div class="vcard-no-photo">🚗</div>`}
       <div class="vcard-top"><span class="vcard-stock">${esc(c.stock)||'—'}</span><span style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;justify-content:flex-end"><span class="badge" style="${srcBadgeStyle(c.source)}">${esc(c.source)||'—'}${c.source==='Consignment'&&c.sourceName?'<span style="font-weight:400;opacity:.7"> · '+esc(c.sourceName)+'</span>':''}</span>${c.purchaseType==='Floored'?'<span class="badge" style="background:#fef3c7;color:#b45309">📋 Floored</span>':c.source!=='Consignment'&&(!c.purchaseType||c.purchaseType==='Cash')?'<span class="badge" style="background:#dcfce7;color:#15803d">💵 Cash</span>':''}</span></div>
       <div class="vcard-name">${cname(c)}</div>
-      <div class="vcard-vin">${c.vin||'No VIN'}${c.color?' · '+c.color:''}${c.mileage?' · '+Number(c.mileage).toLocaleString()+' mi':''}</div>
+      <div class="vcard-vin">${c.vin||'No VIN'}${c.color?' · '+esc(c.color):''}${c.mileage?' · '+Number(c.mileage).toLocaleString()+' mi':''}</div>
       <div class="vcard-grid">
         <div class="vcard-item"><label>Purchase</label><span>${fmt(c.price)}</span></div>
         <div class="vcard-item"><label>Expenses</label><span>${fmt(expTotal(c))}</span></div>
@@ -3697,7 +3712,7 @@ function renderPL(){
     </div>
     <div class="card"><div class="card-head"><div class="card-title">Vehicles Sold — ${fmtMo(plMonth)}</div></div>
       <div class="tbl-wrap"><table><thead><tr><th>Stock #</th><th>Vehicle</th><th>Buyer</th><th>All-In Cost</th><th>Sale Price</th><th>Profit / Loss</th></tr></thead>
-      <tbody>${ms.map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.stock||'—'}</td><td><strong>${cname(c)}</strong></td><td>${c.buyer||'—'}</td><td>${fmt(allIn(c))}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span></td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-3)">No sales this month</td></tr>'}</tbody>
+      <tbody>${ms.map(c=>{const pr=profit(c);return`<tr class="clickable" onclick="openVehiclePage('${c.id}','dashboard')"><td style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text-3)">${c.stock||'—'}</td><td><strong>${cname(c)}</strong></td><td>${esc(c.buyer||'—')}</td><td>${fmt(allIn(c))}</td><td>${fmt(c.salePrice)}</td><td><span class="badge ${pr>=0?'b-profit':'b-loss'}">${pr>=0?'+':''}${fmt(pr)}</span></td></tr>`;}).join('')||'<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-3)">No sales this month</td></tr>'}</tbody>
       </table></div>
     </div>`;
 }
@@ -3920,14 +3935,14 @@ function parseAndPreviewExpenses(text){
 
   for(const r of expParsedRows){
     const rowStyle = r.matchedCar ? '' : 'opacity:.4';
-    const vehicleLabel = r.matchedCar ? cname(r.matchedCar) : `${r.stk||r.vin} <span style="color:var(--red);font-size:11px">(not found)</span>`;
+    const vehicleLabel = r.matchedCar ? cname(r.matchedCar) : `${esc(r.stk||r.vin)} <span style="color:var(--red);font-size:11px">(not found)</span>`;
     const statusBadge = r.matchedCar
       ? `<span style="background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Import</span>`
       : `<span style="background:var(--red-bg);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Skip</span>`;
     html += `<tr style="${rowStyle};border-bottom:1px solid var(--border)">
       <td style="padding:9px 12px;font-weight:600">${vehicleLabel}</td>
-      <td style="padding:9px 12px;color:var(--text-2)">${r.vendor}</td>
-      <td style="padding:9px 12px"><span style="background:var(--blue-bg);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${mapExpenseCategory(r.type)}</span></td>
+      <td style="padding:9px 12px;color:var(--text-2)">${esc(r.vendor)}</td>
+      <td style="padding:9px 12px"><span style="background:var(--blue-bg);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">${esc(mapExpenseCategory(r.type))}</span></td>
       <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-weight:600">$${r.amount.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td style="padding:9px 12px">${statusBadge}</td>
     </tr>`;
@@ -4335,9 +4350,9 @@ function parseAndPreviewCSV(text){
       ? `<span style="background:var(--gold-bg);color:var(--gold);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Skip (dupe)</span>`
       : `<span style="background:var(--green-bg);color:var(--green);font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px">Import</span>`;
     html += `<tr style="${rowStyle};border-bottom:1px solid var(--border)">
-      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${r.stock}</td>
-      <td style="padding:9px 12px;font-weight:600">${[r.year,r.make,r.model].filter(Boolean).join(' ')}</td>
-      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${r.vin}</td>
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${esc(r.stock)}</td>
+      <td style="padding:9px 12px;font-weight:600">${esc([r.year,r.make,r.model].filter(Boolean).join(' '))}</td>
+      <td style="padding:9px 12px;font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text-3)">${esc(r.vin)}</td>
       <td style="padding:9px 12px">${r.miles.toLocaleString()}</td>
       <td style="padding:9px 12px;font-family:'DM Mono',monospace">$${r.cost.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td>
       <td style="padding:9px 12px">${statusBadge}</td>
