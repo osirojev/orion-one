@@ -842,8 +842,7 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="page-header">
       <div><div class="ph-title">Dashboard</div><div class="ph-sub" id="dashDate"></div></div>
       <div class="ph-actions">
-        <button class="btn btn-ghost" onclick="$('inv_scan_in').click()" title="Scan an invoice or receipt and add it to the right car"><span class="ic ic-camera"></span> Scan invoice</button>
-        <input type="file" id="inv_scan_in" accept="image/*,application/pdf" style="display:none" onchange="scanInvoiceUniversal(this)">
+        <button class="btn btn-ghost" onclick="nav('addexp',$('nb-addexp'));if(typeof mobTabActive==='function')mobTabActive(null)" title="Add an expense to a car — type it in or scan the receipt"><span class="ic ic-dollar"></span> Add Expense</button>
         <button class="btn btn-ghost" id="refreshBtn" onclick="manualRefresh()" title="Sync latest data" style="padding:8px 12px;font-size:13px">🔄 Sync</button>
         <button class="btn btn-gold" onclick="openDeal()">🤝 Record Deal</button>
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
@@ -954,13 +953,19 @@ tfoot tr:hover td{background:#f0f7ff}
   <!-- ── ADD EXPENSE PAGE ── -->
   <div class="page" id="pg-addexp">
     <div class="page-header">
-      <div><div class="ph-title">💸 Add Expense</div><div class="ph-sub">Search by last 6 of VIN · add expenses directly to any vehicle</div></div>
+      <div><div class="ph-title">Add Expense</div><div class="ph-sub">Scan the receipt or search by last 6 of VIN · add expenses to any vehicle</div></div>
     </div>
     <div class="page-body">
       <!-- VIN SEARCH -->
       <div class="card" style="max-width:520px;margin-bottom:20px">
         <div class="card-head"><div class="card-title"><span class="ic ic-search"></span>Find Vehicle</div></div>
-        <div style="padding:18px;display:flex;gap:10px;align-items:flex-end">
+        <div style="padding:18px 18px 0">
+          <button class="btn btn-dark" style="width:100%;justify-content:center;padding:12px;font-size:14px" onclick="$('ae_scan_in').click()"><span class="ic ic-camera"></span> Scan receipt / take a photo</button>
+          <input type="file" id="ae_scan_in" accept="image/*,application/pdf" style="display:none" onchange="aeScanReceipt(this)">
+          <div id="ae_scan_status" class="rcpt-status"></div>
+          <div style="font-size:11px;color:var(--text-3);text-align:center;margin:12px 0 0;text-transform:uppercase;letter-spacing:1px">or find the car by VIN</div>
+        </div>
+        <div style="padding:12px 18px 18px;display:flex;gap:10px;align-items:flex-end">
           <div style="flex:1">
             <label style="font-size:12px;font-weight:600;color:var(--text-2);display:block;margin-bottom:6px">Last 6 of VIN (or any part)</label>
             <input id="aeVinSearch" type="text" maxlength="17" placeholder="e.g. 023056"
@@ -1145,32 +1150,6 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('mBizExp')">Cancel</button>
       <button class="btn btn-dark" onclick="saveBizExp()">Save Expense</button>
-    </div>
-  </div>
-</div>
-
-<!-- ══════════ SCAN INVOICE (universal) MODAL ══════════ -->
-<div class="modal-overlay" id="mScanInv">
-  <div class="modal">
-    <div class="modal-head">
-      <div><div class="modal-title">Add invoice to a car</div><div class="modal-sub" id="si_sub">Reading invoice…</div></div>
-      <button class="close-btn" onclick="closeModal('mScanInv')">✕</button>
-    </div>
-    <div class="modal-body">
-      <div id="si_match" class="si-match"></div>
-      <div class="frow cols1" style="margin-bottom:14px"><div class="fg"><label>Vehicle *</label><select id="si_car"></select></div></div>
-      <div class="frow">
-        <div class="fg"><label>Category</label><select id="si_cat"></select></div>
-        <div class="fg"><label>Amount ($) *</label><input id="si_amt" type="number" min="0" step="0.01" placeholder="0.00"></div>
-      </div>
-      <div class="frow">
-        <div class="fg"><label>Vendor</label><input id="si_vendor" placeholder="Vendor"></div>
-        <div class="fg"><label>Description</label><input id="si_desc" placeholder="What was it for?"></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-ghost" onclick="closeModal('mScanInv')">Cancel</button>
-      <button class="btn btn-dark" id="si_save" onclick="saveScannedInvoice()">Add to car</button>
     </div>
   </div>
 </div>
@@ -2220,7 +2199,7 @@ async function viewReceipt(path){
 }
 
 // ── UNIVERSAL INVOICE SCAN (Dashboard): read invoice, find the car by VIN / stock # / vehicle, confirm, add ──
-let __siPending=null;
+let __aePending=null; // scanned receipt waiting to be saved on the Add Expense page
 const vnorm=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 function matchCarFromInvoice(r){
   const pool=[...cars].sort((a,b)=>(a.status==='Sold')-(b.status==='Sold'));
@@ -2234,45 +2213,38 @@ function matchCarFromInvoice(r){
     if(c)return{car:c,how:'vehicle "'+r.vehicle+'"',weak:true};}
   return null;
 }
-async function scanInvoiceUniversal(input){
+async function aeScanReceipt(input){
   const file=input.files&&input.files[0];input.value='';if(!file)return;
-  __siPending=null;
-  const msg=(t,cls)=>{$('si_match').className='si-match '+(cls||'');$('si_match').textContent=t;};
-  $('si_sub').textContent='Reading invoice…';msg('Reading the invoice — this takes a few seconds.','busy');
-  $('si_cat').innerHTML=CATS.map(ct=>`<option>${ct}</option>`).join('');
-  const byName=(a,b)=>cname(a).localeCompare(cname(b));
-  const opt=c=>`<option value="${esc(c.id)}">${esc(cname(c))}${c.stock?' · '+esc(c.stock):''}${c.vin?' · …'+esc(String(c.vin).slice(-6)):''}</option>`;
-  $('si_car').innerHTML=`<option value="">— Choose the car —</option><optgroup label="In stock">${cars.filter(c=>c.status!=='Sold').sort(byName).map(opt).join('')}</optgroup><optgroup label="Sold">${cars.filter(c=>c.status==='Sold').sort(byName).map(opt).join('')}</optgroup>`;
-  ['si_amt','si_vendor','si_desc'].forEach(id=>$(id).value='');$('si_save').disabled=true;
-  openModal('mScanInv');
+  __aePending=null;
+  const st=$('ae_scan_status'),show=(t,cls)=>{if(st){st.className='rcpt-status '+(cls||'');st.textContent=t;}};
+  show('Reading receipt…','busy');
   try{
     const payload=await fileToReceiptPayload(file);
     const{data,error}=await _supa.functions.invoke('scan-receipt',{body:{...payload}});
     let r=data;if(error){try{r=await error.context.json();}catch(_){r=null;}}
-    if(!r||!r.ok)throw new Error((r&&r.error)||'Could not read the invoice');
-    __siPending=payload;
-    $('si_cat').value=r.category;$('si_vendor').value=r.vendor||'';
-    const d=r.date?` (${r.date.slice(5,7)}/${r.date.slice(8,10)}/${r.date.slice(2,4)})`:'';
-    $('si_desc').value=((r.description||'Invoice')+d).slice(0,80);$('si_amt').value=Number(r.total).toFixed(2);
-    $('si_sub').textContent=`${r.vendor||'Invoice'} · ${fmt(r.total)}`;
+    if(!r||!r.ok)throw new Error((r&&r.error)||'Could not read the receipt');
+    __aePending={payload,r};
+    const summary=`${r.vendor||'Receipt'} · ${fmt(r.total)}`;
     const m=matchCarFromInvoice(r);
-    if(m){$('si_car').value=m.car.id;msg((m.weak?'Possible match by ':'Matched by ')+m.how+': '+cname(m.car)+(m.car.status==='Sold'?' (already sold)':'')+(m.weak?' — please confirm it is the right car.':''),m.weak?'warn':'ok');}
-    else{const shown=r.vin||r.stock||r.vehicle;msg(shown?`The invoice shows "${shown}", but no car in Orion One matches it. Choose the car below.`:'No VIN or stock # found on the invoice. Choose the car below.','warn');}
-  }catch(e){msg((e.message||'Could not read the invoice')+'. You can still fill it in by hand.','err');$('si_sub').textContent='Enter the expense by hand';}
-  $('si_save').disabled=false;
+    if(m){
+      $('aeVinSearch').value=String(m.car.vin||'').slice(-6);
+      $('aeResults').innerHTML=aeVehicleCard(m.car);aeFillFromScan(m.car.id);
+      show(`${summary} — ${m.weak?'possible match':'matched'} by ${m.how}: ${cname(m.car)}${m.car.status==='Sold'?' (sold)':''}.${m.weak?' Make sure it is the right car,':''} Check the details below and press Save.`,m.weak?'warn':'ok');
+      document.getElementById('ae_card_'+m.car.id)?.scrollIntoView({behavior:'smooth',block:'center'});
+    }else{
+      $('aeResults').innerHTML='';
+      const shown=r.vin||r.stock||r.vehicle;
+      show(`${summary} — ${shown?`the receipt shows "${shown}" but no car matches it.`:'no VIN found on it.'} Type the last 6 of the VIN below; the details will be filled in for you.`,'warn');
+      $('aeVinSearch').value='';$('aeVinSearch').focus();
+    }
+  }catch(e){show((e.message||'Could not read the receipt')+'. You can still add the expense by hand below.','err');}
 }
-function saveScannedInvoice(){
-  const id=$('si_car').value,amt=parseFloat($('si_amt').value);
-  const flag=el=>{el.style.borderColor='var(--red)';setTimeout(()=>el.style.borderColor='',1500);};
-  if(!id){flag($('si_car'));return;}
-  if(!amt||amt<=0){flag($('si_amt'));return;}
-  const c=cars.find(x=>x.id===id);if(!c)return;
-  if(!c.expenses)c.expenses=[];
-  const exp={id:uid(),category:$('si_cat').value,vendor:$('si_vendor').value.trim(),desc:$('si_desc').value.trim(),amount:amt};
-  const pr=__siPending;__siPending=null;if(pr)exp.receipt='pending';
-  c.expenses.push(exp);save();closeModal('mScanInv');renderAll();
-  toast(`Added ${fmt(amt)} to ${cname(c)}`);
-  if(pr)uploadReceipt(c.id,exp.id,{carId:c.id,...pr});
+function aeFillFromScan(carId){
+  const p=__aePending;if(!p)return;const r=p.r;
+  const set=(id,v)=>{const el=document.getElementById(id);if(el){el.value=v;el.classList.add('rcpt-filled');}};
+  const d=r.date?` (${r.date.slice(5,7)}/${r.date.slice(8,10)}/${r.date.slice(2,4)})`:'';
+  set(`ae_cat_${carId}`,r.category);set(`ae_ven_${carId}`,r.vendor||'');
+  set(`ae_desc_${carId}`,((r.description||'Receipt')+d).slice(0,80));set(`ae_amt_${carId}`,Number(r.total).toFixed(2));
 }
 
 function delExpVD(id,idx){
@@ -3386,6 +3358,7 @@ function aeSearchVin(raw){
       return;
     }
     el.innerHTML=matches.map(c=>aeVehicleCard(c)).join('');
+    if(__aePending)matches.forEach(c=>aeFillFromScan(c.id));
   }catch(err){
     console.error('aeSearchVin error:',err);
     const el=$('aeResults');
@@ -3472,16 +3445,19 @@ function aeSaveExp(carId){
     desc:document.getElementById(`ae_desc_${carId}`)?.value.trim()||'',
     amount:amt
   };
+  const pr=__aePending;__aePending=null;if(pr)exp.receipt='pending';
   if(!c.expenses)c.expenses=[];
   c.expenses.push(exp);
   save();
-  toast(`Expense saved — ${exp.vendor||exp.category} $${amt.toFixed(2)}`,'ok');
+  toast(`Expense saved — ${exp.vendor||exp.category} $${amt.toFixed(2)}${pr?' (receipt attached)':''}`,'ok');
+  if(pr){uploadReceipt(carId,exp.id,{carId,...pr.payload});const st=$('ae_scan_status');if(st){st.className='rcpt-status ok';st.textContent='Saved to '+cname(c)+' with the receipt. Scan another one any time.';}}
   // Refresh the card in place
   const cardEl=document.getElementById(`ae_card_${carId}`);
   if(cardEl){const fresh=document.createElement('div');fresh.innerHTML=aeVehicleCard(c);cardEl.replaceWith(fresh.firstElementChild);}
 }
 
 function aeClear(){
+  __aePending=null;const st=$('ae_scan_status');if(st){st.className='rcpt-status';st.textContent='';}
   const inp=$('aeVinSearch');if(inp)inp.value='';
   $('aeResults').innerHTML='';
 }
