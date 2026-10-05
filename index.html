@@ -696,6 +696,9 @@ tfoot tr:hover td{background:#f0f7ff}
 .rcpt-status.err{color:var(--red)}
 .rcpt-filled{border-color:var(--accent)!important;background:rgba(37,99,235,.06)!important}
 .qadd-row:has(#vd_qa_desc){grid-template-columns:1fr 1fr}
+.exp-rcpt{background:none;border:1px solid var(--border);border-radius:6px;padding:1px 6px;font-size:11px;color:var(--accent);cursor:pointer;display:inline-flex;align-items:center;gap:3px;font-family:inherit}
+.exp-rcpt:hover{border-color:var(--accent)}
+.exp-rcpt.pending{color:var(--text-3);cursor:default}
 .qadd-row #vd_qa_desc{grid-column:1/-1}
 /* aging alert */
 .aging-alert{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--shadow-sm);margin:16px 0;overflow:hidden}
@@ -1643,7 +1646,7 @@ async function bootApp(user){
   renderDash(); updateBadge();
 }
 
-async function manualRefresh(){
+async function manualRefresh(silent){
   const btn = $('refreshBtn');
   if(btn){ btn.textContent='🔄 Syncing...'; btn.disabled=true; }
   await loadData();
@@ -1653,11 +1656,12 @@ async function manualRefresh(){
   if(curPage==='pl') renderPL();
   if(curPage==='expenses') renderExpenses();
   if(btn){ btn.textContent='🔄 Sync'; btn.disabled=false; }
-  toast('Inventory synced ✓');
+  if(!silent) toast('Inventory synced ✓');
 }
 
 // Auto-refresh every 2 minutes to catch new ACV imports
-setInterval(()=>{ if(currentUser) manualRefresh(); }, 2 * 60 * 1000);
+// Quiet background refresh every 2 min — skipped while a form is open or you're typing
+setInterval(()=>{ const a=document.activeElement; if(currentUser && !document.querySelector('.modal-overlay.open') && !(a&&['INPUT','TEXTAREA','SELECT'].includes(a.tagName))) manualRefresh(true); }, 2 * 60 * 1000);
 
 _supa.auth.onAuthStateChange(async (event, session) => {
   if(session?.user) bootApp(session.user);
@@ -1676,7 +1680,7 @@ function mobTabActive(el){
 }
 function openMobMore(){ openModal('mMobMore'); }
 document.addEventListener('keydown', e=>{
-  if($('authScreen').style.display!=='none' && e.key==='Enter') authSubmit();
+  if($('authScreen').style.display!=='none'){ if(e.key==='Enter') authSubmit(); return; }
   // Global shortcuts — skip if typing in an input/textarea/select
   if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
   if(e.key==='n'||e.key==='N'){ e.preventDefault(); openAddVehicle(); }
@@ -1719,6 +1723,8 @@ function daysIn(d,colored=false){
   return`<span class="vcard-days ${cls}">${label}</span>`;
 }
 // Input sanitisation for numbers — prevent negative values sneaking through
+// Today's date in the user's own time zone (toISOString() is UTC, which is tomorrow after 8 PM Eastern)
+function todayLocal(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function posNum(val,fallback=0){const n=parseFloat(val);return(isNaN(n)||n<0)?fallback:n;}
 
 function nav(pg,el){
@@ -1796,7 +1802,7 @@ function renderDP(){
     </div></div>`;
   }
   if(c.status==='Sold'&&c.dealNotes){
-    buyerSection+=`<div class="dp-section"><div class="dp-section-title"><span class="ic ic-notes"></span>Deal Notes</div><div class="dp-notes">${c.dealNotes}</div></div>`;
+    buyerSection+=`<div class="dp-section"><div class="dp-section-title"><span class="ic ic-notes"></span>Deal Notes</div><div class="dp-notes">${esc(c.dealNotes)}</div></div>`;
   }
 
   const expRows=(c.expenses||[]).map((e,i)=>{
@@ -1971,10 +1977,11 @@ function renderVehiclePage(){
     const label=[e.vendor,e.desc].filter(Boolean).join(' — ')||e.category;
     return`<div class="cost-row">
       <span class="cost-label indent" style="flex-direction:column;align-items:flex-start;gap:1px">
-        <span style="display:flex;align-items:center;gap:6px">↳ <strong>${label}</strong>
+        <span style="display:flex;align-items:center;gap:6px">↳ <strong>${esc(label)}</strong>
+          ${e.receipt==='pending'?'<span class="exp-rcpt pending">saving receipt…</span>':e.receipt?`<button class="exp-rcpt" onclick="viewReceipt('${esc(e.receipt)}')" title="View receipt"><span class="ic ic-notes"></span>Receipt</button>`:''}
           <button class="exp-remove" onclick="delExpVD('${c.id}',${i})" title="Remove">✕</button>
         </span>
-        <span style="font-size:11px;color:var(--text-3);padding-left:14px">${e.category}</span>
+        <span style="font-size:11px;color:var(--text-3);padding-left:14px">${esc(e.category)}</span>
       </span>
       <span class="cost-amount">${fmt(e.amount)}</span>
     </div>`;
@@ -2050,7 +2057,7 @@ function renderVehiclePage(){
         ${c.buyerLicense?`<div class="vd-info-item"><label>License #</label><span>${esc(c.buyerLicense)}</span></div>`:''}
         ${c.buyerAddress?`<div class="vd-info-item" style="grid-column:1/-1"><label>Address</label><span>${esc(c.buyerAddress)}</span></div>`:''}
       </div>
-      ${c.dealNotes?`<div style="padding:0 18px 18px"><div class="dp-notes">${c.dealNotes}</div></div>`:''}
+      ${c.dealNotes?`<div style="padding:0 18px 18px"><div class="dp-notes">${esc(c.dealNotes)}</div></div>`:''}
       <div style="padding:0 18px 18px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
           <div style="font-size:13px;font-weight:600;color:var(--text-1)">💵 Payments Received</div>
@@ -2069,7 +2076,7 @@ function renderVehiclePage(){
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
             <div style="display:flex;flex-direction:column;gap:4px">
               <label style="font-size:11px;color:var(--text-3)">Date</label>
-              <input id="vd_pay_date" type="date" value="${new Date().toISOString().slice(0,10)}" style="padding:6px 8px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:12px;background:var(--surface)">
+              <input id="vd_pay_date" type="date" value="${todayLocal()}" style="padding:6px 8px;border-radius:var(--r-sm);border:1px solid var(--border);font-size:12px;background:var(--surface)">
             </div>
             <div style="display:flex;flex-direction:column;gap:4px">
               <label style="font-size:11px;color:var(--text-3)">Amount ($)</label>
@@ -2106,8 +2113,12 @@ function vdQaExp(id){
   if(!c.expenses)c.expenses=[];
   const vendor=($('vd_qa_vendor')||{}).value?.trim()||'';
   const desc=($('vd_qa_desc')||{}).value?.trim()||'';
-  c.expenses.push({category:cat,vendor,desc,amount:amt});
+  const exp={id:uid(),category:cat,vendor,desc,amount:amt};
+  const pr=window.__pendingReceipt;window.__pendingReceipt=null;
+  if(pr&&pr.carId===id)exp.receipt='pending';
+  c.expenses.push(exp);
   save();renderVehiclePage();
+  if(exp.receipt)uploadReceipt(id,exp.id,pr);
 }
 
 // ── RECEIPT SCAN (reads a receipt with Claude via the scan-receipt function; user confirms before saving) ──
@@ -2143,6 +2154,7 @@ async function scanReceipt(carId,input){
     if($('vd_qa_desc'))$('vd_qa_desc').value=((r.description||'Receipt')+d).slice(0,80);
     if($('vd_qa_amt'))$('vd_qa_amt').value=Number(r.total).toFixed(2);
     ['vd_qa_cat','vd_qa_vendor','vd_qa_desc','vd_qa_amt'].forEach(id=>{const el=$(id);if(el){el.classList.add('rcpt-filled');setTimeout(()=>el.classList.remove('rcpt-filled'),5000);}});
+    window.__pendingReceipt={carId,...payload};
     const norm=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     const seen=norm(r.vinOrStock),mine=[c.vin,c.stock].map(norm).filter(Boolean);
     const mismatch=seen.length>=5&&!mine.some(m=>m.includes(seen)||seen.includes(m)||(seen.length>=6&&m.endsWith(seen.slice(-6))));
@@ -2150,8 +2162,33 @@ async function scanReceipt(carId,input){
   }catch(e){show(e.message||'Could not read the receipt','err');}
 }
 
+// Store the scanned receipt file privately in Supabase Storage (bucket "receipts", folder = user id)
+async function uploadReceipt(carId,expId,pr){
+  let path=null;
+  try{
+    const{data:{session}}=await _supa.auth.getSession();if(!session)throw new Error('Not signed in');
+    const ext=pr.mediaType==='application/pdf'?'pdf':'jpg';
+    const bin=Uint8Array.from(atob(pr.fileBase64),ch=>ch.charCodeAt(0));
+    path=`${session.user.id}/${carId}/${expId}.${ext}`;
+    const{error}=await _supa.storage.from('receipts').upload(path,new Blob([bin],{type:pr.mediaType}),{upsert:true,contentType:pr.mediaType});
+    if(error)throw error;
+  }catch(e){console.error(e);path=null;toast('Expense saved, but the receipt photo could not be stored','er');}
+  const c=cars.find(x=>x.id===carId),e=c&&(c.expenses||[]).find(x=>x.id===expId);
+  if(e){if(path)e.receipt=path;else delete e.receipt;save();}
+  if($('pg-vehicle')&&$('pg-vehicle').classList.contains('active')&&vdCarId===carId)renderVehiclePage();
+}
+async function viewReceipt(path){
+  if(!/^[0-9a-f-]{36}\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\.(jpg|pdf)$/.test(path))return;
+  const w=window.open('','_blank');
+  const{data,error}=await _supa.storage.from('receipts').createSignedUrl(path,300);
+  if(error||!data){if(w)w.close();toast('Could not open the receipt','er');return;}
+  if(w)w.location.href=data.signedUrl;else window.location.href=data.signedUrl;
+}
+
 function delExpVD(id,idx){
   const c=cars.find(x=>x.id===id);if(!c)return;
+  const ex=c.expenses[idx];
+  if(ex&&ex.receipt&&ex.receipt!=='pending')_supa.storage.from('receipts').remove([ex.receipt]).catch(()=>{});
   c.expenses.splice(idx,1);save();renderVehiclePage();
 }
 
@@ -2345,7 +2382,7 @@ let tempDealPayments=[];
 
 function initPaymentSection(existingPayments){
   tempDealPayments=[...(existingPayments||[])];
-  $('dp_date').value=new Date().toISOString().slice(0,10);
+  $('dp_date').value=todayLocal();
   $('dp_amt').value='';
   renderPaymentSection();
 }
@@ -2398,7 +2435,7 @@ function renderPaymentSection(){
 function openAddVehicle(){
   editId=null;$('vModalTitle').textContent='Add Vehicle';
   ['f_vin','f_stock','f_year','f_make','f_model','f_color','f_mileage','f_srcname','f_price','f_pack','f_notes'].forEach(id=>$(id).value='');
-  $('f_src').value='Auction';$('f_date').value=new Date().toISOString().slice(0,10);
+  $('f_src').value='Auction';$('f_date').value=todayLocal();
   $('f_ptype').value='Cash';$('f_ptype_row').style.display='';
   $('f_consign_row').style.display='none';
   $('f_consign_fee').value='';$('f_consign_type').value='flat';
@@ -2500,7 +2537,7 @@ function saveVehicle(){
       d.status='Sold';
       Object.assign(d,{salePrice:old.salePrice,buyer:old.buyer,buyerContact:old.buyerContact,soldDate:old.soldDate,buyerPhone:old.buyerPhone,buyerEmail:old.buyerEmail,buyerContact2:old.buyerContact2,buyerLicense:old.buyerLicense,buyerAddress:old.buyerAddress,dealPayment:old.dealPayment,dealType:old.dealType,dealNotes:old.dealNotes,consignorName:old.consignorName,consignorFeeType:old.consignorFeeType,consignorFeeValue:old.consignorFeeValue,dealPayments:old.dealPayments,dealPaidFull:old.dealPaidFull,vehicleSoldAs:old.vehicleSoldAs,dealCondition:old.dealCondition});
     }
-    cars[idx]=d;
+    cars[idx]={...old,...d};
     toast('Vehicle updated ✓');
   } else {
     d.id=uid();cars.unshift(d);
@@ -2594,7 +2631,7 @@ function openDeal(preId){
   ['d_buyer','d_contact','d_phone','d_email','d_lic','d_addr','d_notes','d_price'].forEach(id=>{const el=$(id);if(el)el.value='';});
   if($('buyerSearch'))$('buyerSearch').value='';
   closeBuyerDD();
-  $('d_date').value=new Date().toISOString().slice(0,10);
+  $('d_date').value=todayLocal();
   $('d_pay').value='Check';$('d_type').value='Wholesale';$('profitBar').innerHTML='';
   $('d_consign_row').style.display='none';$('d_consign_fee_row').style.display='none';
   if($('d_consign_name'))$('d_consign_name').value='';
@@ -2621,7 +2658,7 @@ function openEditDeal(id){
   $('dealVehicleSection').style.display='none';
   // Pre-populate deal fields
   $('d_price').value=c.salePrice||'';
-  $('d_date').value=c.soldDate||new Date().toISOString().slice(0,10);
+  $('d_date').value=c.soldDate||todayLocal();
   $('d_pay').value=c.dealPayment||'Check';
   $('d_type').value=c.dealType||'Wholesale';
   // Restore consignor fields if payment method is Consignment
@@ -3055,7 +3092,7 @@ let editRecurId = null;
 function autoPostRecurring(){
   if(!recurringExps.length) return;
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
+  const todayStr = todayLocal();
   const curMonth = todayStr.slice(0,7);
   const todayDay = today.getDate();
   let added = 0;
@@ -3069,7 +3106,7 @@ function autoPostRecurring(){
     // Post it
     const paddedDay = String(postDay).padStart(2,'0');
     bizExps.unshift({
-      id: uid(), recurId: r.id,
+      id: 'rec-'+r.id+'-'+curMonth, recurId: r.id,
       desc: r.desc, cat: r.cat,
       amount: r.amount, date: `${curMonth}-${paddedDay}`,
       vendor: r.vendor||'', notes: r.notes||'',
@@ -3208,7 +3245,7 @@ function openAddBizExp(id=null){
   } else {
     ['be_desc','be_amt','be_vendor','be_notes'].forEach(i=>$(i).value='');
     $('be_cat').value='Rent / Lease';
-    $('be_date').value=new Date().toISOString().slice(0,10);
+    $('be_date').value=todayLocal();
   }
   openModal('mBizExp');
 }
@@ -3652,7 +3689,7 @@ function exportCSV(){
   const blob=new Blob([csv],{type:'text/csv'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);
-  a.download=`Orion-One-Export-${new Date().toISOString().slice(0,10)}.csv`;
+  a.download=`Orion-One-Export-${todayLocal()}.csv`;
   a.click();URL.revokeObjectURL(a.href);
   toast('CSV exported successfully');
 }
@@ -4020,8 +4057,6 @@ document.addEventListener('keydown',e=>{
     for(const m of modals){if($(m)?.classList.contains('open')){closeModal(m);return;}}
     if($('dp').classList.contains('open')){closeDP();return;}
   }
-  if(e.key==='n'&&!e.ctrlKey&&!e.metaKey)openAddVehicle();
-  if(e.key==='d'&&!e.ctrlKey&&!e.metaKey)openDeal();
   if(e.key==='/'&&!e.ctrlKey&&!e.metaKey){
     e.preventDefault();
     const si=$('invSearch');
@@ -4574,7 +4609,7 @@ async function runCSVImport(){
   $('csvImportBtn').disabled = true;
   $('csvImportBtn').textContent = 'Importing...';
 
-  const today = new Date().toISOString().slice(0,10);
+  const today = todayLocal();
   let added = 0;
 
   for(const r of toImport){
