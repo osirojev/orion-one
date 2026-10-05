@@ -700,6 +700,11 @@ tfoot tr:hover td{background:#f0f7ff}
 .exp-rcpt:hover{border-color:var(--accent)}
 .exp-rcpt.pending{color:var(--text-3);cursor:default}
 .qadd-row #vd_qa_desc{grid-column:1/-1}
+.si-match{font-size:13px;line-height:1.45;padding:10px 12px;border-radius:8px;margin-bottom:14px;border:1px solid var(--border);background:var(--bg);color:var(--text-2)}
+.si-match:empty{display:none}
+.si-match.ok{background:var(--green-bg);border-color:transparent;color:#15803d}
+.si-match.warn{background:var(--gold-bg);border-color:transparent;color:#b45309}
+.si-match.err{background:var(--red-bg);border-color:transparent;color:var(--red)}
 /* aging alert */
 .aging-alert{background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--gold);border-radius:var(--r);box-shadow:var(--shadow-sm);margin:16px 0;overflow:hidden}
 .aging-head{display:flex;align-items:center;gap:12px;padding:14px 18px}
@@ -773,6 +778,7 @@ tfoot tr:hover td{background:#f0f7ff}
   #pg-inventory .ph-actions .toolbar .search-box{flex:1 1 100%}
   #pg-inventory .ph-actions .toolbar .filter-sel{max-width:none}
   #pg-dashboard .ph-actions .btn{flex:1;justify-content:center;white-space:nowrap;padding:8px 6px}
+  #pg-dashboard .ph-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
   #pg-dashboard table th:nth-child(2),#dashInv td:nth-child(2),#dashSold td:nth-child(2){display:none}
 }
 </style>
@@ -836,6 +842,8 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="page-header">
       <div><div class="ph-title">Dashboard</div><div class="ph-sub" id="dashDate"></div></div>
       <div class="ph-actions">
+        <button class="btn btn-ghost" onclick="$('inv_scan_in').click()" title="Scan an invoice or receipt and add it to the right car"><span class="ic ic-camera"></span> Scan invoice</button>
+        <input type="file" id="inv_scan_in" accept="image/*,application/pdf" style="display:none" onchange="scanInvoiceUniversal(this)">
         <button class="btn btn-ghost" id="refreshBtn" onclick="manualRefresh()" title="Sync latest data" style="padding:8px 12px;font-size:13px">🔄 Sync</button>
         <button class="btn btn-gold" onclick="openDeal()">🤝 Record Deal</button>
         <button class="btn btn-dark" onclick="openAddVehicle()">+ Add Vehicle</button>
@@ -1137,6 +1145,32 @@ tfoot tr:hover td{background:#f0f7ff}
     <div class="modal-foot">
       <button class="btn btn-ghost" onclick="closeModal('mBizExp')">Cancel</button>
       <button class="btn btn-dark" onclick="saveBizExp()">Save Expense</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SCAN INVOICE (universal) MODAL ══════════ -->
+<div class="modal-overlay" id="mScanInv">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="modal-title">Add invoice to a car</div><div class="modal-sub" id="si_sub">Reading invoice…</div></div>
+      <button class="close-btn" onclick="closeModal('mScanInv')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="si_match" class="si-match"></div>
+      <div class="frow cols1" style="margin-bottom:14px"><div class="fg"><label>Vehicle *</label><select id="si_car"></select></div></div>
+      <div class="frow">
+        <div class="fg"><label>Category</label><select id="si_cat"></select></div>
+        <div class="fg"><label>Amount ($) *</label><input id="si_amt" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      </div>
+      <div class="frow">
+        <div class="fg"><label>Vendor</label><input id="si_vendor" placeholder="Vendor"></div>
+        <div class="fg"><label>Description</label><input id="si_desc" placeholder="What was it for?"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" onclick="closeModal('mScanInv')">Cancel</button>
+      <button class="btn btn-dark" id="si_save" onclick="saveScannedInvoice()">Add to car</button>
     </div>
   </div>
 </div>
@@ -2183,6 +2217,62 @@ async function viewReceipt(path){
   const{data,error}=await _supa.storage.from('receipts').createSignedUrl(path,300);
   if(error||!data){if(w)w.close();toast('Could not open the receipt','er');return;}
   if(w)w.location.href=data.signedUrl;else window.location.href=data.signedUrl;
+}
+
+// ── UNIVERSAL INVOICE SCAN (Dashboard): read invoice, find the car by VIN / stock # / vehicle, confirm, add ──
+let __siPending=null;
+const vnorm=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function matchCarFromInvoice(r){
+  const pool=[...cars].sort((a,b)=>(a.status==='Sold')-(b.status==='Sold'));
+  const one=list=>{const ids=[...new Set(list.map(c=>c.id))];return ids.length===1?pool.find(c=>c.id===ids[0]):null;};
+  const vins=[vnorm(r.vin),vnorm(r.vinOrStock)].filter(Boolean),stocks=[vnorm(r.stock),vnorm(r.vinOrStock)].filter(Boolean);
+  for(const v of vins)if(v.length===17){const c=pool.find(c=>vnorm(c.vin)===v);if(c)return{car:c,how:'VIN '+v};}
+  for(const v of vins)if(v.length>=6&&v.length<17){const c=one(pool.filter(c=>vnorm(c.vin).endsWith(v)));if(c)return{car:c,how:'VIN ending '+v.slice(-6)};}
+  for(const s of stocks)if(s.length>=4){const c=one(pool.filter(c=>vnorm(c.stock)===s));if(c)return{car:c,how:'stock # '+s};}
+  const lw=x=>String(x||'').toLowerCase().replace(/[^a-z0-9]/g,''),t=lw(r.vehicle);
+  if(t){const c=one(cars.filter(c=>c.status!=='Sold'&&c.year&&c.make&&t.includes(lw(c.year))&&t.includes(lw(c.make))&&(!c.model||t.includes(lw(String(c.model).split(' ')[0])))));
+    if(c)return{car:c,how:'vehicle "'+r.vehicle+'"',weak:true};}
+  return null;
+}
+async function scanInvoiceUniversal(input){
+  const file=input.files&&input.files[0];input.value='';if(!file)return;
+  __siPending=null;
+  const msg=(t,cls)=>{$('si_match').className='si-match '+(cls||'');$('si_match').textContent=t;};
+  $('si_sub').textContent='Reading invoice…';msg('Reading the invoice — this takes a few seconds.','busy');
+  $('si_cat').innerHTML=CATS.map(ct=>`<option>${ct}</option>`).join('');
+  const byName=(a,b)=>cname(a).localeCompare(cname(b));
+  const opt=c=>`<option value="${esc(c.id)}">${esc(cname(c))}${c.stock?' · '+esc(c.stock):''}${c.vin?' · …'+esc(String(c.vin).slice(-6)):''}</option>`;
+  $('si_car').innerHTML=`<option value="">— Choose the car —</option><optgroup label="In stock">${cars.filter(c=>c.status!=='Sold').sort(byName).map(opt).join('')}</optgroup><optgroup label="Sold">${cars.filter(c=>c.status==='Sold').sort(byName).map(opt).join('')}</optgroup>`;
+  ['si_amt','si_vendor','si_desc'].forEach(id=>$(id).value='');$('si_save').disabled=true;
+  openModal('mScanInv');
+  try{
+    const payload=await fileToReceiptPayload(file);
+    const{data,error}=await _supa.functions.invoke('scan-receipt',{body:{...payload}});
+    let r=data;if(error){try{r=await error.context.json();}catch(_){r=null;}}
+    if(!r||!r.ok)throw new Error((r&&r.error)||'Could not read the invoice');
+    __siPending=payload;
+    $('si_cat').value=r.category;$('si_vendor').value=r.vendor||'';
+    const d=r.date?` (${r.date.slice(5,7)}/${r.date.slice(8,10)}/${r.date.slice(2,4)})`:'';
+    $('si_desc').value=((r.description||'Invoice')+d).slice(0,80);$('si_amt').value=Number(r.total).toFixed(2);
+    $('si_sub').textContent=`${r.vendor||'Invoice'} · ${fmt(r.total)}`;
+    const m=matchCarFromInvoice(r);
+    if(m){$('si_car').value=m.car.id;msg((m.weak?'Possible match by ':'Matched by ')+m.how+': '+cname(m.car)+(m.car.status==='Sold'?' (already sold)':'')+(m.weak?' — please confirm it is the right car.':''),m.weak?'warn':'ok');}
+    else{const shown=r.vin||r.stock||r.vehicle;msg(shown?`The invoice shows "${shown}", but no car in Orion One matches it. Choose the car below.`:'No VIN or stock # found on the invoice. Choose the car below.','warn');}
+  }catch(e){msg((e.message||'Could not read the invoice')+'. You can still fill it in by hand.','err');$('si_sub').textContent='Enter the expense by hand';}
+  $('si_save').disabled=false;
+}
+function saveScannedInvoice(){
+  const id=$('si_car').value,amt=parseFloat($('si_amt').value);
+  const flag=el=>{el.style.borderColor='var(--red)';setTimeout(()=>el.style.borderColor='',1500);};
+  if(!id){flag($('si_car'));return;}
+  if(!amt||amt<=0){flag($('si_amt'));return;}
+  const c=cars.find(x=>x.id===id);if(!c)return;
+  if(!c.expenses)c.expenses=[];
+  const exp={id:uid(),category:$('si_cat').value,vendor:$('si_vendor').value.trim(),desc:$('si_desc').value.trim(),amount:amt};
+  const pr=__siPending;__siPending=null;if(pr)exp.receipt='pending';
+  c.expenses.push(exp);save();closeModal('mScanInv');renderAll();
+  toast(`Added ${fmt(amt)} to ${cname(c)}`);
+  if(pr)uploadReceipt(c.id,exp.id,{carId:c.id,...pr});
 }
 
 function delExpVD(id,idx){
